@@ -1,12 +1,156 @@
-from fbs_runtime.application_context.PyQt5 import ApplicationContext
-from PyQt5.QtWidgets import QMainWindow
-
+###########import statements#################
+##standard PyQt imports (thanks christos!)###
+from PyQt5 import QtGui, QtCore, QtSvg
+from PyQt5.QtWidgets import (QWidget, QApplication, QPlainTextEdit)
+from PyQt5.QtCore import (pyqtSlot, QThread)
+from PyQt5.QtGui import (QPen, QTransform)
+from PyQt5.QtSvg import QGraphicsSvgItem
+# import pyqtgraph as pg
+##############################################
+###############################################
+import queue #threadsafe queue
 import sys
+from pathlib import Path
+import logging
+from tslearn.metrics import dtw, dtw_path
+from scipy.spatial.distance import cdist
+import numpy as np
+from matplotlib import pyplot as plt
+###############################################
+from AudioRecorder import AudioRecorder
+from Chromatizer import Chromatizer
+# from OnlineDTW import OnlineDTW
+# from OSCClient import OSCclient
+from utils import Params, getReferenceChromas
+from fbs_runtime.application_context.PyQt5 import ApplicationContext
 
-if __name__ == '__main__':
-    appctxt = ApplicationContext()       # 1. Instantiate ApplicationContext
-    window = QMainWindow()
-    window.resize(250, 150)
-    window.show()
-    exit_code = appctxt.app.exec_()      # 2. Invoke appctxt.app.exec_()
+#####################################################
+## Qt app instantiation -> thread setup
+#####################################################
+# class ApplicationContext(object):
+#     """
+#     Manages the resources. There is not
+#     actual need for this Class. The only reason
+#     to use it is for compatibility with the fbs
+#     library, in order to create an exe file for the app
+#     Methods
+#     -------
+#     get_resource(name) : str
+#         returns the path of a resource by name
+#     """
+#     def __init__(self):
+#         self.path = Path.cwd() / 'resources'
+#     def get_resource(self, name):
+#         return str(self.path / name)
+
+class QTextEditLogger(logging.Handler):
+    def __init__(self, parent):
+        super().__init__()
+        self.widget = QPlainTextEdit(parent)
+        self.widget.setReadOnly(True)
+
+    def emit(self, record):
+        msg = self.format(record)
+        self.widget.appendPlainText(msg)
+
+class ScoreFollower(QWidget):
+
+    def __init__(self, appctxt):
+        super(ScoreFollower, self).__init__()
+        # Set the logger
+        logTextBox = QTextEditLogger(self)
+        logTextBox.setFormatter(logging.Formatter('%(asctime)s.%(msecs)05d %(levelname)s %(module)s - %(funcName)s -%(threadName)s -%(lineno)s: %(message)s'))
+        logging.getLogger().addHandler(logTextBox)
+        logging.getLogger().setLevel(logging.DEBUG)
+
+        # initializations
+        self.config = Params(appctxt.get_resource("config.json"))
+        self.setObjectName("ScoreFollower")
+        # TODO a window for the user to choose which score to use
+        self.pieceName = "wtq"
+        # get the reference chroma vectors
+        
+        if self.config.mode == "score" :
+            referenceFile = appctxt.get_resource(f"{self.pieceName}.xml")
+        elif self.config.mode == "audio" : 
+            referenceFile = appctxt.get_resource(f"{self.pieceName}.wav")
+        
+        self.referenceChromas = getReferenceChromas(Path(referenceFile), 
+                                                  sr = self.config.sr,
+                                                  n_fft = self.config.n_fft, 
+                                                  hop_length = self.config.hop_length,
+                                                  chromaType = self.config.chromaType
+                                                  )
+
+        self.testWavFile = appctxt.get_resource(f"{self.pieceName}.wav")
+
+        self.setupThreads()
+        self.signalsandSlots()
+
+    def setupThreads(self):
+        self.readQueue = queue.Queue()
+        self.chromaQueue = queue.Queue()
+        ## threads
+        self.audioThread = QThread()
+        self.dtwThread = QThread()
+        self.chromaThread = QThread()
+        self.oscthread = QThread()
+        self.audioRecorder = AudioRecorder(queue = self.readQueue, 
+                                           wavfile = self.testWavFile,
+                                           rate = self.config.sr,
+                                           # ! be careful, audio streams chunk is 
+                                           # ! equal to the hop_length
+                                           chunk = self.config.hop_length,
+                                           input_device_index=self.config.input_device_index)
+        # ? Not sure if we need a separate thread for the audio stream. 
+        # ? pyaudio already calls the callback on a different thread.
+        self.audioRecorder.moveToThread(self.audioThread)
+        self.chromatizer = Chromatizer(inputqueue = self.readQueue,
+                                    outputqueue = self.chromaQueue,
+                                    rate = self.config.sr,
+                                    hop_length = self.config.hop_length,
+                                    n_fft = self.config.n_fft,
+                                    chromaType = self.config.chromaType)
+        self.chromatizer.moveToThread(self.chromaThread)
+
+        # self.onlineDTW = OnlineDTW(self.scorechroma.chroma, self.chromaQueue, cues)
+        # self.onlineDTW.moveToThread(self.dtwThread)
+        # self.oscclient = OSCclient(ip = "10.123.85.48")
+        # self.oscclient.moveToThread(self.oscthread)
+        self.audioThread.start()
+        # self.audioRecorder.stream.start_stream()
+
+        self.chromaThread.start()
+        
+        # self.dtwThread.start()
+        # self.oscthread.start()
+        logging.debug("setup threads done")
+
+    def closeEvent(self):
+        recordedChromas = np.array(self.chromatizer.chromasList)[:,:,0]
+        np.save("recordedChromas", recordedChromas)
+        logging.debug(f"{self.referenceChromas.shape} {recordedChromas.shape}")
+
+    def signalsandSlots(self):
+        self.audioRecorder.signalToChromatizer.connect(self.chromatizer.calculate)
+        self.audioRecorder.signalEnd.connect(self.closeEvent)
+        # self.chromatizer.signalToOnlineDTW.connect(self.onlineDTW.align)
+        # self.onlineDTW.signalToGUIThread.connect(self.plotter)
+        # self.onlineDTW.signalToOSCclient.connect(self.oscclient.emit)
+
+    # @pyqtSlot(object)
+    # def plotter(self, line):
+    #     line.sort(axis = 0)
+    #     self.curve.setData(line)
+
+if __name__ == "__main__":
+    QThread.currentThread().setObjectName('MainThread')
+    logging.getLogger().setLevel(logging.DEBUG)
+    # Uncomment below for terminal log messages
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s.%(msecs)05d %(levelname)s %(module)s - %(funcName)s - %(threadName)s - %(lineno)s: %(message)s', datefmt= '%H:%M:%S')
+
+    appctxt = ApplicationContext()
+    app = QApplication(sys.argv)
+    mainwindow = ScoreFollower(appctxt)
+    exit_code = app.exec_()
     sys.exit(exit_code)
