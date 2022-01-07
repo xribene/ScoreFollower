@@ -1,4 +1,5 @@
 #%%
+from librosa.core.audio import BW_BEST
 import music21
 from pathlib import Path
 import numpy as np
@@ -12,8 +13,8 @@ def circConv(a,b):
     return np.convolve(np.tile(a, 2), b)[n:2 * n]
 
 #%%
-fileName = Path("wtq.xml")
-wav, sr = librosa.load('wtq.wav', sr = 44100)#, duration=15)
+fileName = Path("jetee2.xml")
+wav, sr = librosa.load('jetee.wav', sr = 48000)#, duration=15)
 print(f"wav duration {wav.shape[0]/sr}")
 score = music21.converter.parse(fileName)
 #%%
@@ -60,7 +61,9 @@ for vert in scoreTreeNotes.iterateVerticalities():
 # sol 1/4 + 1/25
 # mi 1/16
 # siB 1/36
-harmonicTemplate = np.array([1+1/2+1/9,0,0,0,1/16,0,0,1/4+1/25,0,0,1/36,0])
+# C C G C E G Bb
+# 1^2 2^2 3^2
+harmonicTemplate = np.array([1+1/4+1/16,0,0,0,1/25,0,0,1/9+1/36,0,0,1/49,0])
 # harmonicTemplate = np.array([1+1/2,0,0,0,0,0,0,1/4,0,0,1/16,0])
 for i in range(chromaFramesNum):
     chromagram[i] = circConv(harmonicTemplate, notesHist[i])
@@ -79,28 +82,28 @@ chromaWavCqt = librosa.feature.chroma_cqt(y=wav, sr=sr, hop_length=hop_length)
 
 print(chromaWavStft.shape)
 # %%
-# aaa = 1841
-# bbb = aaa + 200
+aaa = 1841
+bbb = aaa + 200
 
-# fig, ax = plt.subplots()
-# img = librosa.display.specshow(chromaWav[:,0:3], hop_length = 2205, y_axis='chroma', x_axis='time', ax=ax)
-# fig.colorbar(img, ax=ax)
-# ax.set(title='ChromagramWav')
+fig, ax = plt.subplots()
+img = librosa.display.specshow(chromaWav[:,0:3], hop_length = 2205, y_axis='chroma', x_axis='time', ax=ax)
+fig.colorbar(img, ax=ax)
+ax.set(title='ChromagramWav')
 
-# fig, ax = plt.subplots()
-# img = librosa.display.specshow(np.transpose(chromagram[aaa:bbb,:]), hop_length = 2205,y_axis='chroma', x_axis='time', ax=ax)
-# fig.colorbar(img, ax=ax)
-# ax.set(title='ChromagramScore')
+fig, ax = plt.subplots()
+img = librosa.display.specshow(np.transpose(chromagram[aaa:bbb,:]), hop_length = 2205,y_axis='chroma', x_axis='time', ax=ax)
+fig.colorbar(img, ax=ax)
+ax.set(title='ChromagramScore')
 # %%
 from tslearn.metrics import dtw, dtw_path
 from scipy.spatial.distance import cdist
 
 # dtw_score = dtw(x, y)
-x = np.transpose(chromaWavStft)[:3800]
-y = chromagram[:3800]
+x = np.transpose(chromaWavCqt)
+y = chromagram
 z = np.load("recordedChromas.npy")
-path, dtw_score = dtw_path(x,z)
-mat = cdist(y,z)
+path, dtw_score = dtw_path(x,y)
+mat = cdist(x,y)
 
 plt.figure(1, figsize=(8, 8))
 
