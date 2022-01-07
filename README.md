@@ -56,7 +56,7 @@
 - Disadvantage : Exe files can become very large (i.e >1GB), depending on what python libraries we need
 
 ## Requirements
-- python>3.6
+- python=3.6
 - PyQt = 5.12
 - music21
 - librosa

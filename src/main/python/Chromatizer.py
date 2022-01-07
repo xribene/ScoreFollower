@@ -12,7 +12,7 @@ class Chromatizer(QObject):
     reference chroma. Currently prints value of fundamental frequency
     of audio chunk.
     '''
-    signalToOnlineDTW = pyqtSignal()
+    signalToOnlineDTW = pyqtSignal(object)
     def __init__(self, inputqueue, outputqueue, rate = 22050, 
                         chromaType = 'cqt', hop_length = 1024,
                         n_fft = 2048):

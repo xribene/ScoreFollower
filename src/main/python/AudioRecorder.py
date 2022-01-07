@@ -28,12 +28,14 @@ class AudioRecorder(QObject):
         self.input_device_index = input_device_index
 
         self.createStream()
+        self.stopped = True
         logging.warning("audio recorder init done")
 
 
     def createStream(self):
         if self.file == None:
             self.stream = self.p.open(format= pyaudio.paFloat32,
+                                    start = False,
                                     channels = 1,
                                     rate = self.rate,
                                     input = True,
@@ -44,23 +46,32 @@ class AudioRecorder(QObject):
         else:
             self.stream = self.p.open(format=self.p.get_format_from_width(self.file.getsampwidth()),
                                     channels = self.file.getnchannels(),
+                                    start = False,
                                     rate = self.rate,
                                     input = True,
                                     output = True,
                                     frames_per_buffer = self.chunk,
                                     stream_callback = self._callback)
-        self.stop = False
+        
 
-        # ? Is this important ? Seems to work fine without it
-        self.startStream()
+    def startStopStream(self):
+        if self.stopped:
+            self.startStream()
+        else:
+            self.stopStream()
 
     def startStream(self):
-        self.stream.start_stream()
+        if self.stopped:
+            self.stream.start_stream()
+            self.stopped = False
 
     def stopStream(self):
-        self.stream.stop_stream()
+        if not self.stopped:
+            self.stream.stop_stream()
+            self.stopped = True
 
     def closeStream(self):
+        self.stream.stop_stream()
         self.stream.close()
         self.p.terminate()
         self.file.close()
@@ -75,25 +86,11 @@ class AudioRecorder(QObject):
 
         if self.file != None:
             data = self.file.readframes(frame_count)
-            if self.i < 3800:
-                data = np.frombuffer(data, "int16")
-                data_per_channel=[data[chan::self.file.getnchannels()] for chan in range(self.file.getnchannels())]
-                mono = (data_per_channel[0] + data_per_channel[1])/2
-                self.signalToChromatizer.emit(mono)
-                self.i += 1
-            else:
-                self.signalEnd.emit()
-                return (data, pyaudio.paAbort)
-            # else:
-            #     logging.debug("stopping stream")
-            #     # self.stopStream()
-            #     self.signalEnd.emit()
-            # if self.i == 100:
-            #     logging.debug("early stopping stream")
-            #     # self.stopStream()
-            #     # self.closeStream()
-            #     # self.signalEnd.emit()
-
+            data = np.frombuffer(data, "int16")
+            data_per_channel=[data[chan::self.file.getnchannels()] for chan in range(self.file.getnchannels())]
+            mono = (data_per_channel[0] + data_per_channel[1])/2
+            self.signalToChromatizer.emit(mono)
+            self.i += 1
         else:
             data = np.frombuffer(in_data, "float32")
             self.signalToChromatizer.emit(data)

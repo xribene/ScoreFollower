@@ -1,8 +1,9 @@
 ###########import statements#################
 ##standard PyQt imports (thanks christos!)###
 from PyQt5 import QtGui, QtCore, QtSvg
-from PyQt5.QtWidgets import (QWidget, QApplication, QPlainTextEdit)
-from PyQt5.QtCore import (pyqtSlot, QThread)
+from PyQt5.QtWidgets import (QGridLayout, QWidget, QApplication, QPlainTextEdit, QMainWindow,
+                            QGridLayout, QStyleFactory)
+from PyQt5.QtCore import (pyqtSlot, QThread, Qt)
 from PyQt5.QtGui import (QPen, QTransform)
 from PyQt5.QtSvg import QGraphicsSvgItem
 # import pyqtgraph as pg
@@ -21,6 +22,9 @@ from AudioRecorder import AudioRecorder
 from Chromatizer import Chromatizer
 # from OnlineDTW import OnlineDTW
 # from OSCClient import OSCclient
+from MenuBar import MenuBar
+from ToolBar import ToolBar
+from OSC import ClientOSC, ServerOSC
 from utils import Params, getReferenceChromas
 from fbs_runtime.application_context.PyQt5 import ApplicationContext
 
@@ -58,14 +62,33 @@ class ScoreFollower(QWidget):
     def __init__(self, appctxt):
         super(ScoreFollower, self).__init__()
         # Set the logger
-        logTextBox = QTextEditLogger(self)
-        logTextBox.setFormatter(logging.Formatter('%(asctime)s.%(msecs)05d %(levelname)s %(module)s - %(funcName)s -%(threadName)s -%(lineno)s: %(message)s'))
-        logging.getLogger().addHandler(logTextBox)
-        logging.getLogger().setLevel(logging.DEBUG)
+        # logTextBox = QTextEditLogger(self)
+        # logTextBox.setFormatter(logging.Formatter('%(asctime)s.%(msecs)05d %(levelname)s %(module)s - %(funcName)s -%(threadName)s -%(lineno)s: %(message)s'))
+        # logging.getLogger().addHandler(logTextBox)
+        # logging.getLogger().setLevel(logging.DEBUG)
 
         # initializations
         self.config = Params(appctxt.get_resource("config.json"))
         self.setObjectName("ScoreFollower")
+        self.appctxt = appctxt
+
+        # gui elements
+        self.menuBar = MenuBar(self)
+        self.toolbar = ToolBar(appctxt = appctxt, parent = self, config = self.config)
+
+        # layout
+        s = QStyleFactory.create('Fusion')
+        self.setStyle(s)
+        mainLayout = QGridLayout(self) 
+        # mainLayout.addWidget(logTextBox.widget)
+        mainLayout.setMenuBar(self.menuBar)
+        mainLayout.addWidget(self.toolbar, 0,0,3,1, Qt.AlignLeft|Qt.AlignTop)
+
+        self.setLayout(mainLayout)
+        self.resize(400,400)
+        self.show()
+
+        
         # TODO a window for the user to choose which score to use
         self.pieceName = "wtq"
         # get the reference chroma vectors
@@ -92,9 +115,6 @@ class ScoreFollower(QWidget):
         self.chromaQueue = queue.Queue()
         ## threads
         self.audioThread = QThread()
-        self.dtwThread = QThread()
-        self.chromaThread = QThread()
-        self.oscthread = QThread()
         self.audioRecorder = AudioRecorder(queue = self.readQueue, 
                                            wavfile = self.testWavFile,
                                            rate = self.config.sr,
@@ -105,6 +125,8 @@ class ScoreFollower(QWidget):
         # ? Not sure if we need a separate thread for the audio stream. 
         # ? pyaudio already calls the callback on a different thread.
         self.audioRecorder.moveToThread(self.audioThread)
+
+        self.chromaThread = QThread()
         self.chromatizer = Chromatizer(inputqueue = self.readQueue,
                                     outputqueue = self.chromaQueue,
                                     rate = self.config.sr,
@@ -113,23 +135,21 @@ class ScoreFollower(QWidget):
                                     chromaType = self.config.chromaType)
         self.chromatizer.moveToThread(self.chromaThread)
 
+        self.oscClientThread = QThread()
+        self.oscServerThread = QThread()
+        self.oscClient = ClientOSC()
+        self.oscServer = ServerOSC()
+
+        # self.dtwThread = QThread()
         # self.onlineDTW = OnlineDTW(self.scorechroma.chroma, self.chromaQueue, cues)
         # self.onlineDTW.moveToThread(self.dtwThread)
-        # self.oscclient = OSCclient(ip = "10.123.85.48")
-        # self.oscclient.moveToThread(self.oscthread)
+
         self.audioThread.start()
-        # self.audioRecorder.stream.start_stream()
-
         self.chromaThread.start()
-        
+        self.oscClientThread.start()
+        self.oscServerThread.start()
         # self.dtwThread.start()
-        # self.oscthread.start()
         logging.debug("setup threads done")
-
-    def closeEvent(self):
-        recordedChromas = np.array(self.chromatizer.chromasList)[:,:,0]
-        np.save("recordedChromas", recordedChromas)
-        logging.debug(f"{self.referenceChromas.shape} {recordedChromas.shape}")
 
     def signalsandSlots(self):
         self.audioRecorder.signalToChromatizer.connect(self.chromatizer.calculate)
@@ -138,6 +158,21 @@ class ScoreFollower(QWidget):
         # self.onlineDTW.signalToGUIThread.connect(self.plotter)
         # self.onlineDTW.signalToOSCclient.connect(self.oscclient.emit)
 
+        # gui 
+        self.toolbar.playPause.triggered.connect(self.startStopRecording)
+
+    def closeEvent(self, event):
+        recordedChromas = np.array(self.chromatizer.chromasList)[:,:,0]
+        # np.save("recordedChromas", recordedChromas)
+        self.audioRecorder.closeStream()
+        logging.debug(f"close Event")
+    def startStopRecording(self):
+        # TODO communicate with audio Recorder using slots (if audio recorder is a thread)
+        self.audioRecorder.startStopStream()
+        if self.audioRecorder.stopped is True:
+            self.toolbar.playPause.setIcon(QtGui.QIcon(self.appctxt.get_resource("svg/rec.svg")))
+        else:
+            self.toolbar.playPause.setIcon(QtGui.QIcon(self.appctxt.get_resource("svg/pause.svg")))
     # @pyqtSlot(object)
     # def plotter(self, line):
     #     line.sort(axis = 0)
@@ -151,6 +186,6 @@ if __name__ == "__main__":
 
     appctxt = ApplicationContext()
     app = QApplication(sys.argv)
-    mainwindow = ScoreFollower(appctxt)
+    mainWindow = ScoreFollower(appctxt)
     exit_code = app.exec_()
     sys.exit(exit_code)

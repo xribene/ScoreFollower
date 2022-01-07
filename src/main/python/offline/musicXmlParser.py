@@ -13,8 +13,8 @@ def circConv(a,b):
     return np.convolve(np.tile(a, 2), b)[n:2 * n]
 
 #%%
-fileName = Path("jetee2.xml")
-wav, sr = librosa.load('jetee.wav', sr = 48000)#, duration=15)
+fileName = Path("jetee4.mid")
+wav, sr = librosa.load('jetee3.wav', sr = 44100)#, duration=15)
 print(f"wav duration {wav.shape[0]/sr}")
 score = music21.converter.parse(fileName)
 #%%
@@ -82,18 +82,18 @@ chromaWavCqt = librosa.feature.chroma_cqt(y=wav, sr=sr, hop_length=hop_length)
 
 print(chromaWavStft.shape)
 # %%
-aaa = 1841
-bbb = aaa + 200
+# aaa = 1841
+# bbb = aaa + 200
 
-fig, ax = plt.subplots()
-img = librosa.display.specshow(chromaWav[:,0:3], hop_length = 2205, y_axis='chroma', x_axis='time', ax=ax)
-fig.colorbar(img, ax=ax)
-ax.set(title='ChromagramWav')
+# fig, ax = plt.subplots()
+# img = librosa.display.specshow(chromaWavCqt[:,0:3], hop_length = 2205, y_axis='chroma', x_axis='time', ax=ax)
+# fig.colorbar(img, ax=ax)
+# ax.set(title='ChromagramWav')
 
-fig, ax = plt.subplots()
-img = librosa.display.specshow(np.transpose(chromagram[aaa:bbb,:]), hop_length = 2205,y_axis='chroma', x_axis='time', ax=ax)
-fig.colorbar(img, ax=ax)
-ax.set(title='ChromagramScore')
+# fig, ax = plt.subplots()
+# img = librosa.display.specshow(np.transpose(chromagram[aaa:bbb,:]), hop_length = 2205,y_axis='chroma', x_axis='time', ax=ax)
+# fig.colorbar(img, ax=ax)
+# ax.set(title='ChromagramScore')
 # %%
 from tslearn.metrics import dtw, dtw_path
 from scipy.spatial.distance import cdist
