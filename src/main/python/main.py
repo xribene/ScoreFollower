@@ -136,9 +136,12 @@ class ScoreFollower(QWidget):
         self.chromatizer.moveToThread(self.chromaThread)
 
         self.oscClientThread = QThread()
-        self.oscServerThread = QThread()
         self.oscClient = ClientOSC()
+        self.oscClient.moveToThread(self.oscClientThread)
+
+        self.oscServerThread = QThread()
         self.oscServer = ServerOSC()
+        self.oscServer.moveToThread(self.oscServerThread)
 
         # self.dtwThread = QThread()
         # self.onlineDTW = OnlineDTW(self.scorechroma.chroma, self.chromaQueue, cues)
@@ -147,7 +150,7 @@ class ScoreFollower(QWidget):
         self.audioThread.start()
         self.chromaThread.start()
         self.oscClientThread.start()
-        self.oscServerThread.start()
+        # self.oscServerThread.start()
         # self.dtwThread.start()
         logging.debug("setup threads done")
 
@@ -160,11 +163,15 @@ class ScoreFollower(QWidget):
 
         # gui 
         self.toolbar.playPause.triggered.connect(self.startStopRecording)
+        # ! remove that after testing
+        self.toolbar.save.triggered.connect(self.oscClient.emit)
+        self.oscServer.serverSignal.connect(self.oscReceiverCallback)
 
     def closeEvent(self, event):
-        recordedChromas = np.array(self.chromatizer.chromasList)[:,:,0]
+        # recordedChromas = np.array(self.chromatizer.chromasList)[:,:,0]
         # np.save("recordedChromas", recordedChromas)
         self.audioRecorder.closeStream()
+        self.oscServer.shutdown()
         logging.debug(f"close Event")
     def startStopRecording(self):
         # TODO communicate with audio Recorder using slots (if audio recorder is a thread)
@@ -173,6 +180,11 @@ class ScoreFollower(QWidget):
             self.toolbar.playPause.setIcon(QtGui.QIcon(self.appctxt.get_resource("svg/rec.svg")))
         else:
             self.toolbar.playPause.setIcon(QtGui.QIcon(self.appctxt.get_resource("svg/pause.svg")))
+
+    @pyqtSlot(object)
+    def oscReceiverCallback(self, args):
+        logging.debug(f"main osc receiver got {args}")
+
     # @pyqtSlot(object)
     # def plotter(self, line):
     #     line.sort(axis = 0)
