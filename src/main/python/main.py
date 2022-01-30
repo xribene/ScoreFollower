@@ -2,10 +2,10 @@
 ##standard PyQt imports (thanks christos!)###
 from PyQt5 import QtGui, QtCore, QtSvg
 from PyQt5.QtWidgets import (QGridLayout, QWidget, QApplication, QPlainTextEdit, QMainWindow,
-                            QGridLayout, QStyleFactory)
-from PyQt5.QtCore import (pyqtSlot, QThread, Qt)
-from PyQt5.QtGui import (QPen, QTransform)
-from PyQt5.QtSvg import QGraphicsSvgItem
+                            QGridLayout, QStyleFactory, QTextEdit)
+from PyQt5.QtCore import (pyqtSlot, QThread, Qt, pyqtSignal)
+from pyqtgraph import PlotWidget, plot
+import pyqtgraph as pg
 # import pyqtgraph as pg
 ##############################################
 ###############################################
@@ -20,7 +20,7 @@ from matplotlib import pyplot as plt
 ###############################################
 from AudioRecorder import AudioRecorder
 from Chromatizer import Chromatizer
-# from OnlineDTW import OnlineDTW
+from Aligner import Aligner
 # from OSCClient import OSCclient
 from MenuBar import MenuBar
 from ToolBar import ToolBar
@@ -58,7 +58,7 @@ class QTextEditLogger(logging.Handler):
         self.widget.appendPlainText(msg)
 
 class ScoreFollower(QWidget):
-
+    signalToAligner = pyqtSignal()
     def __init__(self, appctxt):
         super(ScoreFollower, self).__init__()
         # Set the logger
@@ -75,48 +75,87 @@ class ScoreFollower(QWidget):
         # gui elements
         self.menuBar = MenuBar(self)
         self.toolbar = ToolBar(appctxt = appctxt, parent = self, config = self.config)
+        # self.graphWidget = pg.PlotWidget()
+        self.textEdit = QTextEdit()
 
+        self.win = pg.GraphicsWindow()
+        self.plot = self.win.addPlot(title = "Minimum Cost Path",
+                                  labels = {
+                                  'bottom':"Score Frame (V(t))",
+                                  'left':"Audio Frame (V(j))"},
+                                   backround = "white")
+        # self.curve = self.p.plot(pen="r", background="w")
+        # self.plot = pg.plot()
+        self.scatter = pg.ScatterPlotItem(
+            size=10, brush=pg.mkBrush(255, 255, 255, 120))
+        self.plot.addItem(self.scatter)
         # layout
         s = QStyleFactory.create('Fusion')
         self.setStyle(s)
         mainLayout = QGridLayout(self) 
         # mainLayout.addWidget(logTextBox.widget)
         mainLayout.setMenuBar(self.menuBar)
-        mainLayout.addWidget(self.toolbar, 0,0,3,1, Qt.AlignLeft|Qt.AlignTop)
+        mainLayout.addWidget(self.toolbar)#, 0,0,3,1, Qt.AlignLeft|Qt.AlignTop)
+        mainLayout.addWidget(self.win)
+        mainLayout.addWidget(self.textEdit)
+
+        self.cursor = QtGui.QTextCursor(self.textEdit.document())
+        self.cursor.setPosition(0)
+        self.textEdit.setTextCursor(self.cursor)
+
+        # self.textEdit.setHtml("<font color='red' size='6'><red>Hello PyQt5!\nHello</font>")
+        # self.textEdit.insertPlainText('your text here\n')
+
+        # self.cursor.setPosition(0)
+        # self.textEdit.insertHtml("<font color='red' size='3'><red>Hello PyQt5!\nHello</font>")
+        # mainLayout.addWidget(self.plot)
 
         self.setLayout(mainLayout)
-        self.resize(400,400)
+        self.resize(1000,1000)
         self.show()
 
         
         # TODO a window for the user to choose which score to use
-        self.pieceName = "wtq"
+        self.pieceName = "jetee"
         # get the reference chroma vectors
         
         if self.config.mode == "score" :
-            referenceFile = appctxt.get_resource(f"{self.pieceName}.xml")
+            referenceFile = appctxt.get_resource(f"{self.pieceName}4.mid")
         elif self.config.mode == "audio" : 
-            referenceFile = appctxt.get_resource(f"{self.pieceName}.wav")
+            referenceFile = appctxt.get_resource(f"{self.pieceName}FF.wav")
         
         self.referenceChromas = getReferenceChromas(Path(referenceFile), 
                                                   sr = self.config.sr,
                                                   n_fft = self.config.n_fft, 
                                                   hop_length = self.config.hop_length,
+                                                  window_length = self.config.window_length,
                                                   chromaType = self.config.chromaType
                                                   )
+        logging.debug(f"reference Chromas shape is {self.referenceChromas.shape}")
 
-        self.testWavFile = appctxt.get_resource(f"{self.pieceName}.wav")
+        repeats = list(np.ones((self.referenceChromas.shape[0])))
+        # for i in range(100,150):
+        #     repeats[i] += 1
+ 
+        for i in range(600,800):
+            repeats[i] += 1
+        for i in range(1000,1200):
+            repeats[i] += 1
+        # self.referenceChromas = np.repeat(self.referenceChromas, repeats, axis=0)
+        self.testWavFile = appctxt.get_resource(f"{self.pieceName}FF.wav")
+        # self.testWavFile = appctxt.get_resource(f"recordedJetee.wav")
 
+        self.timer = QtCore.QTimer()
         self.setupThreads()
         self.signalsandSlots()
 
     def setupThreads(self):
         self.readQueue = queue.Queue()
-        self.chromaQueue = queue.Queue()
+        self.chromaBuffer = queue.LifoQueue(10000)
         ## threads
         self.audioThread = QThread()
         self.audioRecorder = AudioRecorder(queue = self.readQueue, 
-                                           wavfile = self.testWavFile,
+                                           wavfile =  self.testWavFile, # None,#
                                            rate = self.config.sr,
                                            # ! be careful, audio streams chunk is 
                                            # ! equal to the hop_length
@@ -127,10 +166,11 @@ class ScoreFollower(QWidget):
         self.audioRecorder.moveToThread(self.audioThread)
 
         self.chromaThread = QThread()
-        self.chromatizer = Chromatizer(inputqueue = self.readQueue,
-                                    outputqueue = self.chromaQueue,
+        self.chromatizer = Chromatizer(
+                                    chromaBuffer = self.chromaBuffer,
                                     rate = self.config.sr,
                                     hop_length = self.config.hop_length,
+                                    window_length = self.config.window_length,
                                     n_fft = self.config.n_fft,
                                     chromaType = self.config.chromaType)
         self.chromatizer.moveToThread(self.chromaThread)
@@ -143,36 +183,61 @@ class ScoreFollower(QWidget):
         self.oscServer = ServerOSC()
         self.oscServer.moveToThread(self.oscServerThread)
 
-        # self.dtwThread = QThread()
-        # self.onlineDTW = OnlineDTW(self.scorechroma.chroma, self.chromaQueue, cues)
-        # self.onlineDTW.moveToThread(self.dtwThread)
+        self.alignerThread = QThread()
+        self.aligner = Aligner(self.referenceChromas, self.chromaBuffer)
+        self.aligner.moveToThread(self.alignerThread)
 
         self.audioThread.start()
         self.chromaThread.start()
         self.oscClientThread.start()
+        
         # self.oscServerThread.start()
-        # self.dtwThread.start()
+        self.alignerThread.start()
         logging.debug("setup threads done")
+
+    def invokeAlign(self):
+        # logging.debug(f"in invokeAlign")
+        self.signalToAligner.emit()
+
+    def startAligner(self):
+        logging.debug("to start timer")
+        # self.timer.setSingleShot(True)
+        self.timer.timeout.connect(self.invokeAlign)
+        # self.timer.start(int(1000*self.config.hop_length / self.config.sr / 2))
+        self.timer.start(10)
+        # self.timer.singleShot(1000, self.align)
+        #self.timer.start(100)
+    def stopAligner(self):
+        logging.debug("stopped timer")
+        self.timer.stop()
+        print(np.mean(self.aligner.durs))
+        plt.scatter(self.aligner.pathOnline[:,0], self.aligner.pathOnline[:,1])
+        plt.show()
+    def plotCurrentPath(self):
+        plt.scatter(self.aligner.pathOnline[:,0], self.aligner.pathOnline[:,1])
+        plt.show()
 
     def signalsandSlots(self):
         self.audioRecorder.signalToChromatizer.connect(self.chromatizer.calculate)
         self.audioRecorder.signalEnd.connect(self.closeEvent)
-        # self.chromatizer.signalToOnlineDTW.connect(self.onlineDTW.align)
-        # self.onlineDTW.signalToGUIThread.connect(self.plotter)
-        # self.onlineDTW.signalToOSCclient.connect(self.oscclient.emit)
-
+        self.aligner.signalToGUIThread.connect(self.plotPath)
+        self.aligner.signalToOSCclient.connect(self.oscClient.emit)
+        self.signalToAligner.connect(self.aligner.align)
         # gui 
         self.toolbar.playPause.triggered.connect(self.startStopRecording)
+        self.aligner.signalEnd.connect(self.stopAligner)
         # ! remove that after testing
-        self.toolbar.save.triggered.connect(self.oscClient.emit)
+        self.toolbar.save.triggered.connect(self.startAligner)
+        self.toolbar.preferences.triggered.connect(self.plotCurrentPath)
         self.oscServer.serverSignal.connect(self.oscReceiverCallback)
 
     def closeEvent(self, event):
-        # recordedChromas = np.array(self.chromatizer.chromasList)[:,:,0]
-        # np.save("recordedChromas", recordedChromas)
+        recordedChromas = np.array(self.chromatizer.chromasList)[:,:,0]
+        np.save("recordedChromas", recordedChromas)
         self.audioRecorder.closeStream()
         self.oscServer.shutdown()
         logging.debug(f"close Event")
+
     def startStopRecording(self):
         # TODO communicate with audio Recorder using slots (if audio recorder is a thread)
         self.audioRecorder.startStopStream()
@@ -184,17 +249,29 @@ class ScoreFollower(QWidget):
     @pyqtSlot(object)
     def oscReceiverCallback(self, args):
         logging.debug(f"main osc receiver got {args}")
+        self.cursor.setPosition(0)
+        self.textEdit.setTextCursor(self.cursor)
+        self.textEdit.insertHtml(f"<font color='green' size='6'><red>/cue <b>{args[0]}</b></font><br>")
 
-    # @pyqtSlot(object)
-    # def plotter(self, line):
-    #     line.sort(axis = 0)
-    #     self.curve.setData(line)
+    @pyqtSlot(object)
+    def plotPath(self, args):
+        # line = args[0]
+        # logging.debug(f"in plotPath j={args[1]}")
+        # self.curve.setData(line)
+
+        # spots = [{'pos': pos[:, i], 'data': 1}
+        #          for i in range(n)] + [{'pos': [0, 0], 'data': 1}]
+        spot = [{'pos': np.array(args), 'data': 1}]
+        # adding points to the scatter plot
+        self.scatter.addPoints(spot)
+        # self.graphWidget.plot(line[:,0], line[:,1])
 
 if __name__ == "__main__":
     QThread.currentThread().setObjectName('MainThread')
+    logging.getLogger('matplotlib.font_manager').disabled = True
     logging.getLogger().setLevel(logging.DEBUG)
     # Uncomment below for terminal log messages
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s.%(msecs)05d %(levelname)s %(module)s - %(funcName)s - %(threadName)s - %(lineno)s: %(message)s', datefmt= '%H:%M:%S')
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s - %(threadName)s - %(lineno)s: %(message)s', datefmt= '%H:%M:%S')
 
     appctxt = ApplicationContext()
     app = QApplication(sys.argv)

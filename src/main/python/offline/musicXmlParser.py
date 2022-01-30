@@ -6,6 +6,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 import librosa
 import librosa.display
+from tslearn.metrics.dtw_variants import cdist_dtw
 
 #%%
 def circConv(a,b):
@@ -14,7 +15,9 @@ def circConv(a,b):
 
 #%%
 fileName = Path("jetee4.mid")
-wav, sr = librosa.load('jetee3.wav', sr = 44100)#, duration=15)
+wav, sr = librosa.load('jetee.wav', sr = 44100)#, duration=15)
+# fileName = Path("wtq.mid")
+# wav, sr = librosa.load('wtq2.wav', sr = 44100)#, duration=15)
 print(f"wav duration {wav.shape[0]/sr}")
 score = music21.converter.parse(fileName)
 #%%
@@ -99,7 +102,7 @@ from tslearn.metrics import dtw, dtw_path
 from scipy.spatial.distance import cdist
 
 # dtw_score = dtw(x, y)
-x = np.transpose(chromaWavCqt)
+x = np.transpose(chromaWavStft)
 y = chromagram
 z = np.load("recordedChromas.npy")
 path, dtw_score = dtw_path(x,y)

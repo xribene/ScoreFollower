@@ -20,11 +20,11 @@ class ClientOSC(QObject):
         self.i += 1
         # bundle = osc_bundle_builder.OscBundleBuilder(osc_bundle_builder.IMMEDIATELY)
         msg = osc_message_builder.OscMessageBuilder(address=f"/cue")
-        msg.add_arg(self.i)
+        msg.add_arg(cuenum)
         # bundle.add_content(msg.build())
         msg = msg.build()
         self.client.send(msg)
-        logging.info(f"message {msg} sent")
+        # logging.info(f"message {msg} sent")
 
 class ServerOSC(QObject):
     serverSignal = pyqtSignal(object)

@@ -5,8 +5,7 @@ import time
 import sys
 
 
-wf = wave.open("offline/wtq.wav", 'rb')
-
+wf = wave.open("offline/jeteeFF.wav", 'rb')
 # instantiate PyAudio (1)
 p = pyaudio.PyAudio()
 
