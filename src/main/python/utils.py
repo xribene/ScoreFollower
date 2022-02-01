@@ -14,12 +14,15 @@ def circConv(a,b):
 
 def getReferenceChromas(filePath, sr = 44100, n_fft = 4096, window_length = 2048,
                         hop_length = 1024, chromaType = "stft", n_chroma = 12,
-                        norm=np.inf):
+                        norm=np.inf, normAudio = False, windowType='hann',
+                        chromafb = None, magPower = 1):
     # TODO if the folders exist, don't generate chromas again.
     
     ext = str(filePath.parts[-1]).split(".")[-1]
     # logging.info(f'{ext}')
     if ext in ["xml","mid"]:
+        print(filePath)
+
         score = music21.converter.parse(filePath)
         scoreTree = score.asTimespans()
         scoreTreeNotes = score.asTimespans(classList=(music21.note.Note,music21.note.Rest, music21.chord.Chord))
@@ -43,7 +46,7 @@ def getReferenceChromas(filePath, sr = 44100, n_fft = 4096, window_length = 2048
         measureFramesNum =  int(timeSign.barDuration.quarterLength / chromaFrameQuarters)
 
         #
-        notesHist = np.zeros((chromaFramesNum, 12))
+        notesHist = np.zeros((chromaFramesNum, n_chroma))
         chromagram = np.zeros_like(notesHist)
 
         for vert in scoreTreeNotes.iterateVerticalities():
@@ -70,6 +73,8 @@ def getReferenceChromas(filePath, sr = 44100, n_fft = 4096, window_length = 2048
                 print(i)
     elif ext == "wav":
         wav, sr = librosa.load(filePath, sr = sr)#, duration=15)
+        if normAudio is True:
+            wav = wav/np.sqrt(np.mean(wav**2))
         if chromaType == "cqt":
             chromagram = librosa.feature.chroma_cqt(y=wav, sr=sr, hop_length=hop_length)
         elif chromaType == "stft":
@@ -80,9 +85,10 @@ def getReferenceChromas(filePath, sr = 44100, n_fft = 4096, window_length = 2048
             stftFrames = []
             chromaFrames = []
             i = 0
-            fft_window = librosa.filters.get_window("hann", window_length, fftbins=True)
+            fft_window = librosa.filters.get_window(windowType, window_length, fftbins=True)
             tuning = 0.0 #librosa.core.pitch.estimate_tuning(y=wav, sr=sr, bins_per_octave=n_chroma)
-            chromafb = librosa.filters.chroma(sr, n_fft, tuning=tuning, n_chroma=n_chroma)
+            if chromafb is None:
+                chromafb = librosa.filters.chroma(sr, n_fft, tuning=tuning, n_chroma=n_chroma)
 
             stride = hop_length
             frame_len = window_length
@@ -93,7 +99,7 @@ def getReferenceChromas(filePath, sr = 44100, n_fft = 4096, window_length = 2048
                 chunk = wav[i*stride:i*stride+frame_len]
                 chunk_win = fft_window * chunk
                 real_fft = rfft(chunk_win, n = n_fft)
-                stftFrames.append( np.abs(real_fft)** 2 )
+                stftFrames.append( np.abs(real_fft)** magPower )
                 raw_chroma = np.dot(chromafb, stftFrames[-1])
                 norm_chroma = librosa.util.normalize(raw_chroma, norm=norm, axis=0)
                 chromaFrames.append(norm_chroma)
@@ -104,7 +110,7 @@ def getReferenceChromas(filePath, sr = 44100, n_fft = 4096, window_length = 2048
    
         # print(chromaWav.shape)
         # print(f"wav duration {wav.shape[0]/sr}")
-    return chromagram   
+    return chromagram  
 
 
 class Params():

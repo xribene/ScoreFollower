@@ -129,7 +129,13 @@ class ScoreFollower(QWidget):
                                                   n_fft = self.config.n_fft, 
                                                   hop_length = self.config.hop_length,
                                                   window_length = self.config.window_length,
-                                                  chromaType = self.config.chromaType
+                                                  chromaType = self.config.chromaType,
+                                                  n_chroma = self.config.n_chroma,
+                                                  norm = self.config.norm,
+                                                  normAudio = True,
+                                                  windowType = self.config.window_type,
+                                                  chromafb = None,
+                                                  magPower = self.config.magPower
                                                   )
         logging.debug(f"reference Chromas shape is {self.referenceChromas.shape}")
 
@@ -139,11 +145,11 @@ class ScoreFollower(QWidget):
  
         for i in range(600,800):
             repeats[i] += 1
-        for i in range(1000,1200):
+        for i in range(1500,1700):
             repeats[i] += 1
-        # self.referenceChromas = np.repeat(self.referenceChromas, repeats, axis=0)
-        self.testWavFile = appctxt.get_resource(f"{self.pieceName}FF.wav")
-        # self.testWavFile = appctxt.get_resource(f"recordedJetee.wav")
+        self.referenceChromas = np.repeat(self.referenceChromas, repeats, axis=0)
+        # self.testWavFile = appctxt.get_resource(f"{self.pieceName}FF.wav")
+        self.testWavFile = appctxt.get_resource(f"recordedJetee.wav")
 
         self.timer = QtCore.QTimer()
         self.setupThreads()
@@ -172,7 +178,14 @@ class ScoreFollower(QWidget):
                                     hop_length = self.config.hop_length,
                                     window_length = self.config.window_length,
                                     n_fft = self.config.n_fft,
-                                    chromaType = self.config.chromaType)
+                                    chromaType = self.config.chromaType,
+                                    n_chroma = self.config.n_chroma,
+                                    norm = self.config.norm, 
+                                    normAudio = False, 
+                                    windowType = self.config.window_type,
+                                    magPower = self.config.magPower,
+                                    chromafb = None,
+                        )
         self.chromatizer.moveToThread(self.chromaThread)
 
         self.oscClientThread = QThread()
@@ -184,7 +197,12 @@ class ScoreFollower(QWidget):
         self.oscServer.moveToThread(self.oscServerThread)
 
         self.alignerThread = QThread()
-        self.aligner = Aligner(self.referenceChromas, self.chromaBuffer)
+        self.aligner = Aligner(self.referenceChromas, self.chromaBuffer,
+                                n_chroma = self.config.n_chroma, 
+                                c = self.config.c, 
+                                maxRunCount = self.config.maxRunCount, 
+                                metric = self.config.metric,
+                                w = self.config.w_diag)
         self.aligner.moveToThread(self.alignerThread)
 
         self.audioThread.start()
@@ -196,25 +214,29 @@ class ScoreFollower(QWidget):
         logging.debug("setup threads done")
 
     def invokeAlign(self):
-        # logging.debug(f"in invokeAlign")
+        logging.debug(f"in invokeAlign")
         self.signalToAligner.emit()
 
     def startAligner(self):
         logging.debug("to start timer")
-        # self.timer.setSingleShot(True)
-        self.timer.timeout.connect(self.invokeAlign)
+        self.timer.setSingleShot(True)
+        # self.timer.timeout.connect(self.invokeAlign)
+
         # self.timer.start(int(1000*self.config.hop_length / self.config.sr / 2))
-        self.timer.start(10)
-        # self.timer.singleShot(1000, self.align)
+        # self.timer.start(5)
+        self.timer.singleShot(1000, self.aligner.align)
         #self.timer.start(100)
     def stopAligner(self):
+        # if self.aligner.reachedEnd
         logging.debug("stopped timer")
-        self.timer.stop()
+        # self.timer.stop()
         print(np.mean(self.aligner.durs))
-        plt.scatter(self.aligner.pathOnline[:,0], self.aligner.pathOnline[:,1])
+        plt.scatter(self.aligner.pathFront[:,0], self.aligner.pathFront[:,1],0.1)
         plt.show()
     def plotCurrentPath(self):
-        plt.scatter(self.aligner.pathOnline[:,0], self.aligner.pathOnline[:,1])
+        recordedChromas = np.array(self.chromatizer.chromasList)[:,:,0]
+        np.save("recordedChromas", recordedChromas)
+        plt.scatter(self.aligner.pathFront[:,0], self.aligner.pathFront[:,1],0.1)
         plt.show()
 
     def signalsandSlots(self):
@@ -228,12 +250,13 @@ class ScoreFollower(QWidget):
         self.aligner.signalEnd.connect(self.stopAligner)
         # ! remove that after testing
         self.toolbar.save.triggered.connect(self.startAligner)
-        self.toolbar.preferences.triggered.connect(self.plotCurrentPath)
+        # self.toolbar.preferences.triggered.connect(self.plotCurrentPath)
+        self.toolbar.preferences.triggered.connect(self.stopAligner)
+
         self.oscServer.serverSignal.connect(self.oscReceiverCallback)
 
     def closeEvent(self, event):
-        recordedChromas = np.array(self.chromatizer.chromasList)[:,:,0]
-        np.save("recordedChromas", recordedChromas)
+        
         self.audioRecorder.closeStream()
         self.oscServer.shutdown()
         logging.debug(f"close Event")

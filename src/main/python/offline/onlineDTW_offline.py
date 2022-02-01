@@ -11,6 +11,8 @@ import librosa
 from copy import copy, deepcopy
 from pdb import set_trace as bp
 from sklearn.metrics.pairwise import euclidean_distances
+import scipy.io as sio
+
 
 #%%
 def cosine_distance(a, b):
@@ -38,14 +40,14 @@ def _getInc(D, t, j, x, y, runCount, maxRunCount, previous):
     which indicates the direction of the next alignment point
     '''
     print(runCount)
-    if t < c:
-        return "B", x, y
-    if runCount > maxRunCount:
-        # print("akriiiiiiiiiiiiiiiii")
-        if previous == "R":
-            return "C", x, y
-        else:
-            return "R", x, y
+    # if t < c:
+    #     return "B", x, y
+    # if runCount > maxRunCount:
+    #     # print("akriiiiiiiiiiiiiiiii")
+    #     if previous == "R":
+    #         return "C", x, y
+    #     else:
+    #         return "R", x, y
     # ! matlab's code
     # tmp1 = D(J , 1:T);
     # tmp2 = D(1:J , T);
@@ -107,6 +109,14 @@ def _getInc(D, t, j, x, y, runCount, maxRunCount, previous):
     #     else:
     #         return "R", x, y
 
+    if t < c:
+        return "B", x, y
+    if runCount > maxRunCount:
+        # print("akriiiiiiiiiiiiiiiii")
+        if previous == "R":
+            return "C", x, y
+        else:
+            return "R", x, y
     if x < t:
         return "R", x, y
     elif y < j:
@@ -125,32 +135,49 @@ def _getInc(D, t, j, x, y, runCount, maxRunCount, previous):
 # fig.colorbar(img, ax=ax)
 #%%
 n_chroma = 12
-norm =  np.inf
+norm =  2 # use 2 for matlab
+windowType = 'hamming' # use hamming for matlab
+n_fft = 2*4096 #
+chromafbMat = sio.loadmat("C:\\Users\\xribene\\Projects\\code_matlab_2019\\F2CM.mat")['F2CM']#,mat_dtype =np.float32)
+chromafb = chromafbMat[:,:4097] #for matlab
+magPower = 1
+# wav = wav/np.sqrt(np.mean(wav**2))
 # distance = np.linalg.norm
 # distance = cosine_distance
-referenceChromas = getReferenceChromas(Path("/home/xribene/Projects/ScoreFollower/src/main/python/offline/jeteeFF.wav"), 
+# referenceChromas = getReferenceChromas(Path("/home/xribene/Projects/ScoreFollower/src/main/python/offline/jeteeFF.wav"), 
+referenceChromas = getReferenceChromas(Path("jeteeFF.wav"), 
 # referenceChromas = getReferenceChromas(Path("jetee4.mid"), 
                                                   sr = 44100,
-                                                  n_fft = 2*4096, 
+                                                  n_fft = n_fft, 
                                                   hop_length = 1024,
                                                   window_length = 2048,
                                                   chromaType = "stft",
                                                   n_chroma = n_chroma,
-                                                  norm = norm
-                                                  )
+                                                  norm = norm,
+                                                  normAudio = True,
+                                                  windowType = windowType,
+                                                  chromafb = chromafb,
+                                                  magPower = magPower
+                                                )
 # recordedChromas = getReferenceChromas(Path("jetee4.mid"), 
-recordedChromas = getReferenceChromas(Path("/home/xribene/Projects/ScoreFollower/src/main/python/offline/recordedJetee.wav"), 
+# recordedChromas = getReferenceChromas(Path("/home/xribene/Projects/ScoreFollower/src/main/python/offline/recordedJetee.wav"), 
 # recordedChromas = getReferenceChromas(Path("jeteeFF.wav"), 
+recordedChromas = getReferenceChromas(Path("recordedJetee.wav"), 
+
                                                   sr = 44100,
-                                                  n_fft = 2*4096, 
+                                                  n_fft = n_fft, 
                                                   hop_length = 1024,
                                                   window_length = 2048,
                                                   chromaType = "stft",
                                                   n_chroma = n_chroma,
-                                                  norm = norm
+                                                  norm = norm,
+                                                  normAudio = False,
+                                                  windowType = windowType,
+                                                  chromafb = chromafb,
+                                                  magPower = magPower
                                                   )
 # recordedChromas = referenceChromas
-# recordedChromas = np.load("recordedChromas_New2.npy")
+recordedChromas = np.load("recordedChromas.npy")
 print(referenceChromas.shape)
 print(recordedChromas.shape)
 # import scipy.ndimage
@@ -159,9 +186,9 @@ print(recordedChromas.shape)
 repeats = list(np.ones((referenceChromas.shape[0])))
 # for i in range(100,150):
 #     repeats[i] += 1
-for i in range(600,800):
-    repeats[i] += 1
-for i in range(1500,1900):
+for i in range(600-1,800):
+    repeats[i] += 2
+for i in range(1500-1,1700):
     repeats[i] += 1
 # for i in range(800,1500):
 #     repeats[i] += 1
@@ -253,13 +280,13 @@ try:
             # chromaBuffer(:,end) = chroma;
         
         if (t==0) and (j==0):
-            d[0,0] = np.linalg.norm(V[:,0] - U[:,-1])
+            d[0,0] = 0 #np.linalg.norm(V[:,0] - U[:,-1])
             # d[0,0] = cosine_distance(V[:,0], U[:,-1])
 
             D[0,0] = d[0,0]
         # ! do i need that ?
-        if t>c:
-            needNewFrame = 0
+        # if t>c:
+        needNewFrame = 0
         # prevD = deepcopy(D)
         direction, x, y = _getInc(D, t, j, x, y, runCount, maxRunCount, previous)
         # print(np.array_equal(prevD, D))
@@ -269,42 +296,15 @@ try:
         #     FOR k := t - c + 1 TO t
         #         IF k > 0
         #             EvaluatePathCost(k,j)
-        if direction in ["R","B"]:
-            j += 1
-            tt = np.max([0, t - c])
-            ttt = np.max([1, t - c])
-            debug.append(tt)
-            ll = t+1-tt
-            # logging.warning(f"{V.shape}")
-            for k in range(tt, t+1): # range(tt, t+1):
-                # print(f"j={j} t={t} tt={tt} k={k} start={tt-t+c-1} end={t-t+c-1} len={len([i for i in range(tt, t+1)])}" )
-                # bp()
-                # print(f"j={j} t={t} tt={tt} k={k} ind={k-t+c-1}" )
-                if (k-t+c-1==-1):
-                    # print("to be continued")
-                    # bp()
-                    continue
-                if (k-t+c-1==-1):
-                    raise
-                d[j, k] = np.linalg.norm(V[:,j] - U[:,k-t+c-1]) # k-t+c-1
-                # d[j, k] = cosine_distance(V[:,j], U[:,k-t+c-1])
-            if j > c-3:
-                print(f"j={j} t={t} tt={tt} k={k} start={tt-t+c-1} end={t-t+c-1} len={len([i for i in range(tt, t+1)])}" )
-                # bp()
-            D[j, tt] = D[j-1, tt] + d[j, tt]
-            for k in range(tt+1, t+1):
-                tmp1 = d[j, k] + D[j, k-1]
-                tmp2 = w*d[j, k] + 1*D[j-1, k-1]
-                tmp3 = d[j, k] + D[j-1, k]
-                D[j, k] = np.min([tmp1, tmp2, tmp3])
-
+        
         if direction in ["C","B"]:
             t += 1
             needNewFrame = 1
-            jj = np.max([0, j - c])
-            ll == j+1-jj
+            jj = np.max([0, j - c + 1])
+            # ll == j+1-jj
             for k in range(jj, j+1): # range(jj, j+1):
-                d[k, t] = np.linalg.norm(V[:,k] - U[:,-1]) # c-1
+                d[k, t] = np.linalg.norm(V[:,k] - U[:,-1])**2 # c-1
+                # d[k, t] = np.sum((V[:,k] - U[:,-1])**2) # c-1
                 # d[k, t] = cosine_distance(V[:,k], U[:,c-1])
             # if j > c-2:
             #     print(f"j={j} t={t} jj={jj} k={k} start={jj} end={j} length={len([i for i in range(jj,j+1)])}" )
@@ -316,14 +316,45 @@ try:
                 tmp3 = d[k, t] + D[k, t-1]
                 D[k, t] = np.min([tmp1, tmp2, tmp3])
 
+        if direction in ["R","B"]:
+            j += 1
+            tt = np.max([0, t - c + 1])
+            # ttt = np.max([1, t - c])
+            # debug.append(tt)
+            # ll = t+1-tt
+            # logging.warning(f"{V.shape}")
+            for k in range(tt, t+1): # range(tt, t+1):
+                # print(f"j={j} t={t} tt={tt} k={k} start={tt-t+c-1} end={t-t+c-1} len={len([i for i in range(tt, t+1)])}" )
+                # bp()
+                # print(f"j={j} t={t} tt={tt} k={k} ind={k-t+c-1}" )
+                if (k-t+c-1==-1):
+                    # print("to be continued")
+                    bp()
+                    continue
+                if (k-t+c-1==-1):
+                    raise
+                d[j, k] = np.linalg.norm(V[:,j] - U[:,k-t+c-1])**2 # k-t+c-1
+                # d[j, k] = np.sum((V[:,j] - U[:,k-t+c-1])**2) # k-t+c-1
+
+                # d[j, k] = cosine_distance(V[:,j], U[:,k-t+c-1])
+            # if j > c-3:
+            #     print(f"j={j} t={t} tt={tt} k={k} start={tt-t+c-1} end={t-t+c-1} len={len([i for i in range(tt, t+1)])}" )
+                # bp()
+            D[j, tt] = D[j-1, tt] + d[j, tt]
+            for k in range(tt+1, t+1):
+                tmp1 = d[j, k] + D[j, k-1]
+                tmp2 = w*d[j, k] + 1*D[j-1, k-1]
+                tmp3 = d[j, k] + D[j-1, k]
+                D[j, k] = np.min([tmp1, tmp2, tmp3])
+
         # assert(runCount<11)
-        if direction in ["C","R"]:
-            if direction == previous:
-                runCount = runCount + 1
-            else:
-                runCount = 1
-                # print("ZEROED")
-            # TODO remove the next IF and add it here
+        # if direction in ["C","R"]:
+        if direction == previous:
+            runCount = runCount + 1
+        else:
+            runCount = 1
+            # print("ZEROED")
+        # TODO remove the next IF and add it here
         
         if direction != "B":
             previous = direction
@@ -339,30 +370,37 @@ except Exception as e:
 #%%
 print(f"t is {t}")
 print(np.mean(durs))
+print(f"distance is {D[j,t]}")
 # pathOnline.sort(axis = 0)
 
-plt.figure()
-plt.scatter(pathOnline[:i,0], pathOnline[:i,1])
-plt.plot(pathOnline[:i,0], pathOnline[:i,1])
+# plt.figure()
+# plt.scatter(pathOnline[:i,0], pathOnline[:i,1])
+# plt.plot(pathOnline[:i,0], pathOnline[:i,1])
 
 plt.figure()
-plt.scatter(pathFront[:i,0], pathFront[:i,1])
-plt.plot(pathFront[:i,0], pathFront[:i,1])
+plt.scatter(pathFront[:i,0], pathFront[:i,1],0.1)
+# plt.plot(pathFront[:i,0], pathFront[:i,1])
 
-plt.figure()
-plt.scatter(pathNew[:i,0], pathNew[:i,1])
-plt.plot(pathNew[:i,0], pathNew[:i,1])
+# plt.figure()
+# plt.scatter(pathNew[:i,0], pathNew[:i,1])
+# plt.plot(pathNew[:i,0], pathNew[:i,1])
 
 plt.show()
 #%%
-plt.figure()
-
 from tslearn.metrics import dtw, dtw_path, dtw_path_from_metric
 from scipy.spatial.distance import cdist
-
+import scipy.io as sio
 # dtw_score = dtw(x, y)
-x = recordedChromas
-y = referenceChromas
+# matVariables = sio.loadmat("C:\\Users\\xribene\\Projects\\code_matlab_2019\\matlab.mat",mat_dtype =np.float32)
+# recordedChromasMat = matVariables["recordedChromagram"]
+# referenceChromasMat = matVariables["referenceChromagram"]
+referenceChromasMat = sio.loadmat("C:\\Users\\xribene\\Projects\\code_matlab_2019\\referenceChromagram.mat")['referenceChromagram']#,mat_dtype =np.float32)
+
+#%%
+# x = recordedChromas
+# y = referenceChromas
+x = np.transpose(recordedChromasMat)
+y = np.transpose(referenceChromasMat)
 # z = np.load("recordedChromas.npy")
 # dtw_path(ts1, ts2)[1] == np.sqrt(dtw_path_from_metric(ts1, ts2, metric="sqeuclidean")[1])
 
@@ -371,6 +409,7 @@ path, dtw_score = dtw_path_from_metric(x,y, metric="euclidean")
 print(dtw_score)
 # plt.figure()
 pathArr = np.array(path)
+plt.figure()
 plt.scatter(pathArr[:,0], pathArr[:,1])
 plt.plot(pathArr[:,0], pathArr[:,1])
 plt.show()
