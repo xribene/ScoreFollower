@@ -60,7 +60,7 @@ def getReferenceChromas(filePath, sr = 44100, n_fft = 4096, window_length = 2048
             chord = vert.toChord()
             pitchClasses = chord.pitchClasses
             for x in pitchClasses:
-                notesHist[startInd:endInd, x] += 1 
+                notesHist[startInd:endInd, x] = 1 
         #%%
         harmonicTemplate = np.array([1+1/4+1/16,0,0,0,1/25,0,0,1/9+1/36,0,0,1/49,0])
         for i in range(chromaFramesNum):

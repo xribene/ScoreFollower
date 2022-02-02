@@ -138,15 +138,15 @@ n_chroma = 12
 norm =  2 # use 2 for matlab
 windowType = 'hamming' # use hamming for matlab
 n_fft = 2*4096 #
-chromafbMat = sio.loadmat("C:\\Users\\xribene\\Projects\\code_matlab_2019\\F2CM.mat")['F2CM']#,mat_dtype =np.float32)
-chromafb = chromafbMat[:,:4097] #for matlab
+# chromafbMat = sio.loadmat("C:\\Users\\xribene\\Projects\\code_matlab_2019\\F2CM.mat")['F2CM']#,mat_dtype =np.float32)
+chromafb = None#chromafbMat[:,:4097] #for matlab
 magPower = 1
 # wav = wav/np.sqrt(np.mean(wav**2))
 # distance = np.linalg.norm
 # distance = cosine_distance
 # referenceChromas = getReferenceChromas(Path("/home/xribene/Projects/ScoreFollower/src/main/python/offline/jeteeFF.wav"), 
-referenceChromas = getReferenceChromas(Path("jeteeFF.wav"), 
-# referenceChromas = getReferenceChromas(Path("jetee4.mid"), 
+# referenceChromas = getReferenceChromas(Path("jeteeFF.wav"), 
+referenceChromas = getReferenceChromas(Path("jetee4.mid"), 
                                                   sr = 44100,
                                                   n_fft = n_fft, 
                                                   hop_length = 1024,
@@ -161,8 +161,8 @@ referenceChromas = getReferenceChromas(Path("jeteeFF.wav"),
                                                 )
 # recordedChromas = getReferenceChromas(Path("jetee4.mid"), 
 # recordedChromas = getReferenceChromas(Path("/home/xribene/Projects/ScoreFollower/src/main/python/offline/recordedJetee.wav"), 
-# recordedChromas = getReferenceChromas(Path("jeteeFF.wav"), 
-recordedChromas = getReferenceChromas(Path("recordedJetee.wav"), 
+recordedChromas = getReferenceChromas(Path("jeteeFF.wav"), 
+# recordedChromas = getReferenceChromas(Path("recordedJetee.wav"), 
 
                                                   sr = 44100,
                                                   n_fft = n_fft, 
@@ -177,22 +177,22 @@ recordedChromas = getReferenceChromas(Path("recordedJetee.wav"),
                                                   magPower = magPower
                                                   )
 # recordedChromas = referenceChromas
-recordedChromas = np.load("recordedChromas.npy")
+# recordedChromas = np.load("recordedChromas.npy")
 print(referenceChromas.shape)
 print(recordedChromas.shape)
 # import scipy.ndimage
 # referenceChromas = scipy.ndimage.median_filter(referenceChromas, size = (3,1))
 #%%
-repeats = list(np.ones((referenceChromas.shape[0])))
+repeats = list(np.ones((recordedChromas.shape[0])))
 # for i in range(100,150):
 #     repeats[i] += 1
 for i in range(600-1,800):
-    repeats[i] += 2
+    repeats[i] += 1
 for i in range(1500-1,1700):
     repeats[i] += 1
 # for i in range(800,1500):
 #     repeats[i] += 1
-referenceChromas = np.repeat(referenceChromas, repeats, axis=0)
+recordedChromas = np.repeat(recordedChromas, repeats, axis=0)
 # recordedChromas = recordedChromas[100:]
 #%%
 # repeats = list(np.ones((987)))

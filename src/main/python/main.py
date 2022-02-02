@@ -25,7 +25,7 @@ from Aligner import Aligner
 from MenuBar import MenuBar
 from ToolBar import ToolBar
 from OSC import ClientOSC, ServerOSC
-from utils import Params, getReferenceChromas
+from offline.utils_offline import Params, getReferenceChromas
 from fbs_runtime.application_context.PyQt5 import ApplicationContext
 
 #####################################################

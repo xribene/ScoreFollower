@@ -29,7 +29,7 @@ from utils import Params, getReferenceChromas
 from fbs_runtime.application_context.PyQt5 import ApplicationContext
 import librosa
 from scipy.fft import rfft
-
+import scipy.io as sio
 #####################################################
 ## Qt app instantiation -> thread setup
 #####################################################
@@ -74,7 +74,8 @@ class ScoreFollower(QWidget):
         self.setObjectName("ScoreFollower")
         self.appctxt = appctxt
 
-        
+        chromafbMat = sio.loadmat("/home/xribene/Projects/code_matlab_2019/F2CM.mat")['F2CM']#,mat_dtype =np.float32)
+        self.chromafbMat = chromafbMat[:,:4097]
 
         # gui elements
         self.menuBar = MenuBar(self)
@@ -84,7 +85,7 @@ class ScoreFollower(QWidget):
         # self.img = pg.ImageItem()
         # self.win.addItem(self.img)
         self.win = pg.GraphicsWindow()
-        self.plot = self.win.addPlot(title = "Minimum Cost Path",
+        self.plot = self.win.addPlot(title = "Spectrogram",
                                   labels = {
                                   'bottom':"Score Frame (V(t))",
                                   'left':"Audio Frame (V(j))"},
@@ -94,13 +95,30 @@ class ScoreFollower(QWidget):
                                   'bottom':"Score Frame (V(t))",
                                   'left':"Audio Frame (V(j))"},
                                    backround = "white")
+        self.plotChroma2 = self.win.addPlot(title = "ChromaMIDI",
+                                  labels = {
+                                  'bottom':"Score Frame (V(t))",
+                                  'left':"Audio Frame (V(j))"},
+                                   backround = "white")
+        self.plotChroma3 = self.win.addPlot(title = "ChromaMat",
+                                  labels = {
+                                  'bottom':"Score Frame (V(t))",
+                                  'left':"Audio Frame (V(j))"},
+                                   backround = "white")
         self.img = pg.ImageItem()
         self.imgChroma = pg.ImageItem()
+        self.imgChroma2 = pg.ImageItem()
+        self.imgChroma3 = pg.ImageItem()
+
         self.plot.addItem(self.img)
         self.plotChroma.addItem(self.imgChroma)
+        self.plotChroma2.addItem(self.imgChroma2)
+        self.plotChroma3.addItem(self.imgChroma3)
 
-        self.img_array = np.zeros((1000, self.config.n_fft//2+1))
+        self.img_array = np.zeros((1000, 500))#self.config.n_fft//2+1))
         self.chroma_array = np.zeros((1000, self.config.n_chroma))
+        self.chroma_array2 = np.zeros((1000, self.config.n_chroma))
+        self.chroma_array3 = np.zeros((1000, self.config.n_chroma))
 
         pos = np.array([0., 1., 0.5, 0.25, 0.75])
         color = np.array([[0,255,255,255], [255,255,0,255], [0,0,0,255], (0, 0, 255, 255), (255, 0, 0, 255)], dtype=np.ubyte)
@@ -110,15 +128,17 @@ class ScoreFollower(QWidget):
         self.img.setLookupTable(lut)
         self.img.setLevels([-50,40])
         self.imgChroma.setLevels([0,1])
+        self.imgChroma2.setLevels([0,1])
+        self.imgChroma3.setLevels([0,1])
 
-        # freq = np.arange((self.config.n_fft//2)+1)/(float(self.config.n_fft)/self.config.sr)
-        # yscale = 1.0/(self.img_array.shape[1]/freq[-1])
-        # self.img.scale((1./self.config.sr)*self.config.n_fft, yscale)
+        freq = np.arange((self.config.n_fft//2)+1)/(float(self.config.n_fft)/self.config.sr)
+        yscale = 1.0/((self.config.n_fft//2+1)/freq[-1])
+        self.img.scale((1./self.config.sr)*self.config.n_fft, yscale)
 
         # self.setLabel('left', 'Frequency', units='Hz')
 
         self.buffer = np.zeros(self.config.window_length - self.config.hop_length).astype(np.float32)
-        self.fft_window = librosa.filters.get_window("hann", self.config.window_length, fftbins=True)
+        self.fft_window = librosa.filters.get_window(self.config.window_type, self.config.window_length, fftbins=True)
         self.chromafb = librosa.filters.chroma(sr = self.config.sr, n_fft = self.config.n_fft, tuning=0.0, n_chroma=self.config.n_chroma)
 
 
@@ -156,6 +176,22 @@ class ScoreFollower(QWidget):
         # self.testWavFile = appctxt.get_resource(f"recordedJetee.wav")
 
         self.timer = QtCore.QTimer()
+        midiFile = appctxt.get_resource(f"{self.pieceName}4.mid")
+        self.midiChromas = getReferenceChromas(Path(midiFile), 
+                                                  sr = self.config.sr,
+                                                  n_fft = self.config.n_fft, 
+                                                  hop_length = self.config.hop_length,
+                                                  window_length = self.config.window_length,
+                                                  chromaType = self.config.chromaType,
+                                                  n_chroma = self.config.n_chroma,
+                                                  norm = self.config.norm,
+                                                  normAudio = True,
+                                                  windowType = self.config.window_type,
+                                                  chromafb = None,
+                                                  magPower = self.config.magPower
+                                                  )
+        self.i = 0
+
         self.setupThreads()
         self.signalsandSlots()
 
@@ -208,19 +244,28 @@ class ScoreFollower(QWidget):
         fft_mag = np.abs(real_fft)**2
         psd = 20 * np.log10(fft_mag)
         self.img_array = np.roll(self.img_array, -1, 0)
-        self.img_array[-1:] = np.reshape(psd, (1,-1))
-
-        
-
+        self.img_array[-1:] = np.reshape(psd, (1,-1))[:,:500]
         self.img.setImage(self.img_array, autoLevels=False)
-        raw_chroma = np.dot(self.chromafb, fft_mag)
-        # print(np.min(raw_chroma))
-        # print(np.max(raw_chroma))
-        norm_chroma = librosa.util.normalize(raw_chroma, norm=np.inf, axis=0).reshape(-1,1)
+
+        raw_chroma = np.dot(self.chromafb, np.abs(real_fft)**self.config.magPower)
+        norm_chroma = librosa.util.normalize(raw_chroma, norm=self.config.norm, axis=0).reshape(-1,1)
+
+        raw_chromaMat = np.dot(self.chromafb, np.abs(real_fft)**2)
+        norm_chromaMat = librosa.util.normalize(raw_chromaMat, norm=self.config.norm, axis=0).reshape(-1,1)
 
         self.chroma_array = np.roll(self.chroma_array, -1, 0)
         self.chroma_array[-1:] = np.reshape(norm_chroma, (1,-1))
         self.imgChroma.setImage(self.chroma_array, autoLevels=False)
+
+        self.chroma_array2 = np.roll(self.chroma_array2, -1, 0)
+        self.chroma_array2[-1:] = np.reshape(self.midiChromas[min(self.i,self.midiChromas.shape[0]),:], (1,-1))
+        self.imgChroma2.setImage(self.chroma_array2, autoLevels=False)
+
+        self.chroma_array3 = np.roll(self.chroma_array3, -1, 0)
+        self.chroma_array3[-1:] = np.reshape(norm_chromaMat, (1,-1))
+        self.imgChroma3.setImage(self.chroma_array3, autoLevels=False)
+
+        self.i += 1
 
 if __name__ == "__main__":
     QThread.currentThread().setObjectName('MainThread')

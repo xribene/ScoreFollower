@@ -7,17 +7,63 @@ import librosa.display
 import json
 import logging
 from scipy.fft import rfft
+from scipy import signal
+import scipy.io as sio
 
 def circConv(a,b):
     n = a.shape[0]
     return np.convolve(np.tile(a, 2), b)[n:2 * n]
 
-def getReferenceChromas(filePath, sr = 44100, n_fft = 4096, window_length = 2048,
+def chromaFilterbanks(type = "librosa", n_fft = 8192, sr = 44100, n_chroma = 12, 
+                        tuning = 0, base_c = True, extend = 0.1):
+    if type == "librosa":
+        fb = librosa.filters.chroma(sr, n_fft, tuning=tuning, n_chroma=n_chroma)
+    elif type == "bochen":
+        if n_fft != 8192 or sr != 44100 or n_chroma != 12 or tuning != 0:
+            raise
+        fb = sio.loadmat("/home/xribene/Projects/code_matlab_2019/F2CM.mat")['F2CM']#,mat_dtype =np.float32)
+        if base_c is True:
+            # TODO np.roll
+            pass
+    elif type == "mine":
+        fb = np.zeros((n_chroma, n_fft//2+1))
+        fb88 = np.zeros((88, n_fft//2+1))
+        # frequencies = librosa.fft_frequencies(sr,n_fft)
+        prevFreq = librosa.midi_to_hz(20)
+        prevBin =  int((n_fft//2)*prevFreq / (sr/2))
+
+        nextFreq = librosa.midi_to_hz(21)
+        nextBin =  int((n_fft//2)*nextFreq / (sr/2))
+        for i, midi in enumerate(range(21,109)):
+            # currentFreq = nextFreq
+            # currentBin = nextBin
+
+            nextFreq =  librosa.midi_to_hz(midi+1)
+            nextBin = int((n_fft//2)*nextFreq / (sr/2))
+
+            samples = 2*((nextBin - prevBin)//2) + 1
+            filter = createFrequencyBP(type = "gaussian", samples = samples, extend = extend)
+            fb88[i, prevBin:(prevBin+samples) ] = filter
+
+        # def midi_to_hz(notes):
+        # def hz_to_midi(frequencies):
+        # def midi_to_note(midi, octave=True, cents=False, key="C:maj", unicode=True):
+        # def note_to_midi(note, round_midi=True):
+
+
+    return fb88
+
+def createFrequencyBP(type='triangular', samples = 10, extend = 0.1):
+    if type == "trianglar":
+        bp = signal.windows.triang(samples)
+    elif type == "gaussian":
+        bp = signal.windows.gaussian(samples, std = samples*extend, sym=True)
+    return bp
+def getChromas(filePath, sr = 44100, n_fft = 8192, window_length = 2048,
                         hop_length = 1024, chromaType = "stft", n_chroma = 12,
                         norm=np.inf, normAudio = False, windowType='hann',
                         chromafb = None, magPower = 1):
     # TODO if the folders exist, don't generate chromas again.
-    
     ext = str(filePath.parts[-1]).split(".")[-1]
     # logging.info(f'{ext}')
     if ext in ["xml","mid"]:
@@ -44,7 +90,7 @@ def getReferenceChromas(filePath, sr = 44100, n_fft = 4096, window_length = 2048
         measureFramesNum =  int(timeSign.barDuration.quarterLength / chromaFrameQuarters)
 
         #
-        notesHist = np.zeros((chromaFramesNum, n_chroma))
+        notesHist = np.zeros((n_chroma, chromaFramesNum))
         chromagram = np.zeros_like(notesHist)
 
         for vert in scoreTreeNotes.iterateVerticalities():
@@ -58,7 +104,7 @@ def getReferenceChromas(filePath, sr = 44100, n_fft = 4096, window_length = 2048
             chord = vert.toChord()
             pitchClasses = chord.pitchClasses
             for x in pitchClasses:
-                notesHist[startInd:endInd, x] += 1 
+                notesHist[x, startInd:endInd] += 1 
         #%%
         harmonicTemplate = np.array([1+1/4+1/16,0,0,0,1/25,0,0,1/9+1/36,0,0,1/49,0])
         for i in range(chromaFramesNum):
@@ -66,7 +112,7 @@ def getReferenceChromas(filePath, sr = 44100, n_fft = 4096, window_length = 2048
             if np.max(chromagram[i]) != 0 : 
                 # print(chromagram[i])
                 # chromagram[i] = chromagram[i] / np.max(chromagram[i])
-                chromagram[i] = librosa.util.normalize(chromagram[i], norm=norm, axis=0)
+                chromagram[:,i] = librosa.util.normalize(chromagram[i], norm=norm, axis=0)
             else:
                 print(i)
     elif ext == "wav":
@@ -95,21 +141,24 @@ def getReferenceChromas(filePath, sr = 44100, n_fft = 4096, window_length = 2048
             ## What I think is right, and also matches with matlab
             while i*stride+frame_len < wav.shape[-1]:
                 chunk = wav[i*stride:i*stride+frame_len]
-                chunk_win = fft_window * chunk
-                real_fft = rfft(chunk_win, n = n_fft)
-                stftFrames.append( np.abs(real_fft)** magPower )
-                raw_chroma = np.dot(chromafb, stftFrames[-1])
-                norm_chroma = librosa.util.normalize(raw_chroma, norm=norm, axis=0)
-                chromaFrames.append(norm_chroma)
-
+                # norm_chroma = librosa.util.normalize(raw_chroma, norm=norm, axis=0)
+                # 
+                chromaVector = getChromaFrame(chunk = chunk, chromafb = chromafb, fft_window = fft_window, 
+                                                n_fft = n_fft ,norm = norm, magPower = magPower)
+                chromaFrames.append(chromaVector)
                 i += 1
 
-            chromagram = np.array(chromaFrames)
+            chromagram = np.array(chromaVector)
    
-        # print(chromaWav.shape)
-        # print(f"wav duration {wav.shape[0]/sr}")
     return chromagram   
 
+def getChromaFrame(chunk, chromafb, fft_window, n_fft = 4096,norm=2, magPower = 1):
+    chunk_win = fft_window * chunk
+    real_fft = rfft(chunk_win, n = n_fft)
+    psd = np.abs(real_fft)** magPower
+    raw_chroma = np.dot(chromafb, psd)
+    norm_chroma = librosa.util.normalize(raw_chroma, norm=norm, axis=0)
+    return norm_chroma
 
 class Params():
     """Class that loads hyperparameters from a json file.
