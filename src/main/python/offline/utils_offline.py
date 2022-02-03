@@ -108,11 +108,11 @@ def getChromas(filePath, sr = 44100, n_fft = 8192, window_length = 2048,
         #%%
         harmonicTemplate = np.array([1+1/4+1/16,0,0,0,1/25,0,0,1/9+1/36,0,0,1/49,0])
         for i in range(chromaFramesNum):
-            chromagram[i] = circConv(harmonicTemplate, notesHist[i])
-            if np.max(chromagram[i]) != 0 : 
+            chromagram[:,i] = circConv(harmonicTemplate, notesHist[:,i])
+            if np.max(chromagram[:,i]) != 0 : 
                 # print(chromagram[i])
                 # chromagram[i] = chromagram[i] / np.max(chromagram[i])
-                chromagram[:,i] = librosa.util.normalize(chromagram[i], norm=norm, axis=0)
+                chromagram[:,i] = librosa.util.normalize(chromagram[:,i], norm=norm, axis=0)
             else:
                 print(i)
     elif ext == "wav":
@@ -148,7 +148,7 @@ def getChromas(filePath, sr = 44100, n_fft = 8192, window_length = 2048,
                 chromaFrames.append(chromaVector)
                 i += 1
 
-            chromagram = np.array(chromaVector)
+            chromagram = np.array(chromaFrames)
    
     return chromagram   
 

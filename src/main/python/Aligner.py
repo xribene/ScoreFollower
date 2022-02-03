@@ -75,7 +75,7 @@ class Aligner(QObject):
     
     @pyqtSlot()
     def align(self):
-        
+        logging.debug("MESAAAAAAAAAAAAA")
         while(self.j < self.frameNumScore-1):
             logging.debug(f"J = {self.j}")
             aa = time.time()
@@ -142,9 +142,9 @@ class Aligner(QObject):
             self.pathFront[self.i,:] = [self.t, self.j]
             # print(self.j)
             # self.signalToOSCclient.emit(self.i)
-            # if self.i % 100==0:
-            #     self.signalToGUIThread.emit([self.t, self.j])
-            #     self.signalToOSCclient.emit(self.i)
+            if self.i % 100==0:
+                self.signalToGUIThread.emit([self.t, self.j])
+                self.signalToOSCclient.emit(self.i)
             self.durs.append(time.time() - aa)
         # else:
         logging.debug(f"END OF WHILE")

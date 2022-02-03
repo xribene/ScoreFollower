@@ -25,7 +25,10 @@ from Aligner import Aligner
 from MenuBar import MenuBar
 from ToolBar import ToolBar
 from OSC import ClientOSC, ServerOSC
-from offline.utils_offline import Params, getReferenceChromas
+import music21.alpha
+import encodings
+from librosa import * 
+from offline.utils_offline import Params, getChromas
 from fbs_runtime.application_context.PyQt5 import ApplicationContext
 
 #####################################################
@@ -124,7 +127,7 @@ class ScoreFollower(QWidget):
         elif self.config.mode == "audio" : 
             referenceFile = appctxt.get_resource(f"{self.pieceName}FF.wav")
         
-        self.referenceChromas = getReferenceChromas(Path(referenceFile), 
+        self.referenceChromas = getChromas(Path(referenceFile), 
                                                   sr = self.config.sr,
                                                   n_fft = self.config.n_fft, 
                                                   hop_length = self.config.hop_length,
@@ -138,7 +141,7 @@ class ScoreFollower(QWidget):
                                                   magPower = self.config.magPower
                                                   )
         logging.debug(f"reference Chromas shape is {self.referenceChromas.shape}")
-
+        print(self.referenceChromas.shape)
         repeats = list(np.ones((self.referenceChromas.shape[0])))
         # for i in range(100,150):
         #     repeats[i] += 1
@@ -189,11 +192,11 @@ class ScoreFollower(QWidget):
         self.chromatizer.moveToThread(self.chromaThread)
 
         self.oscClientThread = QThread()
-        self.oscClient = ClientOSC()
+        self.oscClient = ClientOSC(port = 53000)
         self.oscClient.moveToThread(self.oscClientThread)
 
         self.oscServerThread = QThread()
-        self.oscServer = ServerOSC()
+        self.oscServer = ServerOSC(port = 53001)
         self.oscServer.moveToThread(self.oscServerThread)
 
         self.alignerThread = QThread()
