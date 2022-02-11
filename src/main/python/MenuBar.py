@@ -19,17 +19,6 @@ class MenuBar(QMenuBar):
         fileMenu.addAction(importAction)
         fileMenu.addAction(saveAction)
         fileMenu.addAction(self.quitAction)
-        # importAction.triggered.connect(self.importWidget.showWindow)
-        # saveAction.triggered.connect(self.saveWidget.showWindow)
-        # edit Actions
-        # connectionsAction = QAction("Connections", self)
-        # self.preferencesAction =  QAction("Preferences",self)
-        # self.preferencesAction.setShortcutContext(Qt.ApplicationShortcut)
-        # editMenu.addAction(connectionsAction)
-        # editMenu.addAction(self.preferencesAction)
-        # connectionsAction.triggered.connect(self.connectionsWidget.showWindow)
-        # preferencesAction.triggered.connect(self.preferencesWidget.showWindow)
-
         # View Actions
         self.showMixerAction = QAction("Mixer", self)
         self.showMixerAction.setShortcut("F3")
@@ -60,4 +49,3 @@ class MenuBar(QMenuBar):
         helpMenu.addAction(self.aboutQtAction)
 
         self.show()
-

@@ -19,16 +19,9 @@ class Aligner(QObject):
         self.metric = metric
         self.previous = None
         self.n_chroma = n_chroma
-        self.w = w
-        self.V = np.transpose(referenceChromas)
-        self.j = 0
-        
-        self.U = np.zeros((n_chroma, self.c)) # audio chromas
-        self.t = 0
-
-        self.x = 0
-        self.y = 0
+        self.referenceChromas = referenceChromas
         self.chromaQueue = chromaBuffer
+        self.w = w
         ##############################################
         # self.scoreChroma = score_chroma
 
@@ -39,8 +32,19 @@ class Aligner(QObject):
 
         self.pathLenMax = self.frameNumScore + self.framenumaudio
 
-        # self.chromaBuffer = np.zeros((12, self.c))
-        # self.inputQueue = inputqueue
+        self.reset()
+
+    @pyqtSlot()
+    def reset(self):
+        
+        self.V = np.transpose(self.referenceChromas)
+        self.j = 0
+        
+        self.U = np.zeros((self.n_chroma, self.c)) # audio chromas
+        self.t = 0
+
+        self.x = 0
+        self.y = 0
         ###############################################
         #### distance matrices ########################
         self.D = np.array(np.ones((self.pathLenMax, self.pathLenMax)) * np.inf)
@@ -67,11 +71,7 @@ class Aligner(QObject):
         self.bStart = 0
         self.durs = []
         self.reachedEnd = False
-        # self.cuelist = cuelist
-        # self.startTimer()
 
-    # @pyqtSlot()
-    
     @pyqtSlot()
     def align(self):
         logging.debug("MESAAAAAAAAAAAAA")
@@ -190,4 +190,3 @@ class Aligner(QObject):
             return "C"
         else:
             return "B"
-        

@@ -38,7 +38,7 @@ class ServerOSC(QObject):
     def __init__(self, ip = "127.0.0.1", port = 53000):
         QObject.__init__(self)
         disp = dispatcher.Dispatcher()
-
+        disp.map("/reply/*", self.globalReceiver)
         disp.set_default_handler(self.globalReceiver)
         # disp.map
         self.server = osc_server.BlockingOSCUDPServer((ip, port), disp)
@@ -56,8 +56,7 @@ class ServerOSC(QObject):
     def shutdown(self):
         logging.debug(f"shutting down osc server")
         self.server.shutdown()
-        logging.debug(f"osc server is down")
-
+        logging.debug(f"osc server is down") 
 
 if __name__ == "__main__":
     from PyQt5 import QtGui

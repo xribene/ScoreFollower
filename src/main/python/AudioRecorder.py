@@ -14,7 +14,7 @@ class AudioRecorder(QObject):
     queue for processing by Chromatizer thread.
     '''
     signalToChromatizer = pyqtSignal(object)
-    signalEnd = pyqtSignal()
+    # signalEnd = pyqtSignal()
     def __init__(self, queue, wavfile=None, rate = 22050, chunk = 4096,
                        input_device_index = 0):
         QObject.__init__(self)
@@ -33,7 +33,6 @@ class AudioRecorder(QObject):
 
         self.createStream()
         self.stopped = True
-        self.mutex = QMutex()
         self.frames = []
 
         logging.warning("audio recorder init done")
@@ -61,7 +60,10 @@ class AudioRecorder(QObject):
                                     frames_per_buffer = self.chunk,
                                     stream_callback = self._callback)
         
-
+    def reset(self):
+        self.stopStream()
+        if self.file is not None:
+            self.file.setpos(0)
     def startStopStream(self):
         if self.stopped:
             self.startStream()

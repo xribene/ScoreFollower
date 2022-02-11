@@ -5,16 +5,9 @@ import logging
 import numpy as np
 import librosa
 from scipy.fft import rfft
-
+from offline.utils_offline import get_window, librosaFiltersChroma, librosaNormalize
 
 class Chromatizer(QObject):
-    '''
-    Chromatizer(QObject): accepts chunks of audio information as input
-    from audio buffer, calculates chroma matrix of audio chunk,
-    pushes chroma information to chroma queue for comparison to
-    reference chroma. Currently prints value of fundamental frequency
-    of audio chunk.
-    '''
     signalToOnlineDTW = pyqtSignal(object)
     def __init__(self, chromaBuffer, rate = 44100, 
                         chromaType = 'stft', hop_length = 1024, 
@@ -37,13 +30,15 @@ class Chromatizer(QObject):
         self.buffer = np.zeros(window_length - hop_length).astype(np.float32)
         self.chromasList = []
         self.lastChroma = np.zeros((n_chroma,1))
-        self.fft_window = librosa.filters.get_window(windowType, window_length, fftbins=True)
+        self.fft_window = get_window(windowType, window_length, fftbins=True)
+        # np.save("fftWindow.npy", self.fft_window)
         self.n_chroma = n_chroma
         #%%
         if chromafb:
             self.chromafb = chromafb
         else:
-            self.chromafb = librosa.filters.chroma(sr = rate, n_fft = n_fft, tuning=0.0, n_chroma=n_chroma)
+            self.chromafb = librosaFiltersChroma(sr = rate, n_fft = n_fft, tuning=0.0, n_chroma=n_chroma)
+            # np.save("chromafbLibrosa.npy",self.chromafb)
 
     @pyqtSlot(object)
     def calculate(self, frame):
@@ -67,7 +62,7 @@ class Chromatizer(QObject):
                 real_fft = rfft(chunk_win, n = self.n_fft)
                 fft_mag = np.abs(real_fft)**self.magPower
                 raw_chroma = np.dot(self.chromafb, fft_mag)
-                norm_chroma = librosa.util.normalize(raw_chroma, norm=self.norm, axis=0).reshape(-1,1)
+                norm_chroma = librosaNormalize(raw_chroma, norm=self.norm, axis=0).reshape(-1,1)
                 # logging.debug(f"norm Chroma shape is {norm_chroma.shape}")
                 # chromaFrames.append(norm_chroma)
             else:
