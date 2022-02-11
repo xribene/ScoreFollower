@@ -2,7 +2,7 @@
 import logging
 import numpy as np
 import queue
-from utils_offline import getReferenceChromas
+from utils_offline import getChromas
 from pathlib import Path
 from matplotlib import pyplot as plt
 import time
@@ -146,7 +146,7 @@ magPower = 1
 # distance = cosine_distance
 # referenceChromas = getReferenceChromas(Path("/home/xribene/Projects/ScoreFollower/src/main/python/offline/jeteeFF.wav"), 
 # referenceChromas = getReferenceChromas(Path("jeteeFF.wav"), 
-referenceChromas = getReferenceChromas(Path("jetee4.mid"), 
+referenceChromas = getChromas(Path("jetee4.mid"), 
                                                   sr = 44100,
                                                   n_fft = n_fft, 
                                                   hop_length = 1024,
@@ -161,7 +161,7 @@ referenceChromas = getReferenceChromas(Path("jetee4.mid"),
                                                 )
 # recordedChromas = getReferenceChromas(Path("jetee4.mid"), 
 # recordedChromas = getReferenceChromas(Path("/home/xribene/Projects/ScoreFollower/src/main/python/offline/recordedJetee.wav"), 
-recordedChromas = getReferenceChromas(Path("jeteeFF.wav"), 
+recordedChromas = getChromas(Path("jeteeFF.wav"), 
 # recordedChromas = getReferenceChromas(Path("recordedJetee.wav"), 
 
                                                   sr = 44100,

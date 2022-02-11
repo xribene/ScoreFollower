@@ -7,8 +7,7 @@ from math import sqrt
 import time
 
 class Aligner(QObject):
-    signalToGUIThread = pyqtSignal(object)
-    signalToOSCclient = pyqtSignal(int)
+    signalToMainThread = pyqtSignal(object)
     signalEnd = pyqtSignal()
     def __init__(self, referenceChromas, chromaBuffer, n_chroma = 12, 
                         c = 200, maxRunCount = 3, 
@@ -142,9 +141,8 @@ class Aligner(QObject):
             self.pathFront[self.i,:] = [self.t, self.j]
             # print(self.j)
             # self.signalToOSCclient.emit(self.i)
-            if self.i % 100==0:
-                self.signalToGUIThread.emit([self.t, self.j])
-                self.signalToOSCclient.emit(self.i)
+            
+            self.signalToMainThread.emit([self.t, self.j])
             self.durs.append(time.time() - aa)
         # else:
         logging.debug(f"END OF WHILE")

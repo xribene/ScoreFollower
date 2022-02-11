@@ -9,11 +9,15 @@ import logging
 from scipy.fft import rfft
 from scipy import signal
 import scipy.io as sio
-
+from collections import OrderedDict, defaultdict
 def circConv(a,b):
     n = a.shape[0]
     return np.convolve(np.tile(a, 2), b)[n:2 * n]
-
+class OrderedDictDefaultList(OrderedDict):
+    def __missing__(self, key):
+        value = list()
+        self[key] = value
+        return value
 def chromaFilterbanks(type = "librosa", n_fft = 8192, sr = 44100, n_chroma = 12, 
                         tuning = 0, base_c = True, extend = 0.1):
     if type == "librosa":
@@ -59,9 +63,41 @@ def createFrequencyBP(type='triangular', samples = 10, extend = 0.1):
     elif type == "gaussian":
         bp = signal.windows.gaussian(samples, std = samples*extend, sym=True)
     return bp
+
+def getCuesDict(filePath, sr = 44100, hop_length = 1024):
+    score = music21.converter.parse(filePath)
+    tempo = score.recurse().getElementsByClass(music21.tempo.MetronomeMark)[0]
+
+    secsPerQuarter = tempo.secondsPerQuarter()
+
+    # timeSign = score[music21.meter.TimeSignature][0]
+    timeSign = score.recurse().getElementsByClass(music21.meter.TimeSignature)[0]
+    secsPerSixteenth = secsPerQuarter / 4
+    scoreDurQuarter = score.duration.quarterLength
+    # print(f"score duration {secsPerQuarter*scoreDurQuarter}")
+    # quantities for chroma calculation.
+    chromaFrameSeconds = hop_length/sr #secsPerSixteenth #  0.046
+    chromaFrameQuarters = chromaFrameSeconds / secsPerQuarter
+    chromaFramesNum = int(scoreDurQuarter/chromaFrameQuarters)
+    measureFramesNum =  int(timeSign.barDuration.quarterLength / chromaFrameQuarters)
+
+    cuesPart = next(part for part in score.parts if part.partName=="CUES")
+    cues = list(cuesPart.recurse().getElementsByClass(music21.expressions.RehearsalMark))
+    measureMap = cuesPart.measureOffsetMap()
+
+    frame2CueDict = defaultdict(list)#OrderedDictDefaultList()
+    for i, cue in enumerate(cues):
+        currentFrame = int(np.ceil(cue.getOffsetInHierarchy(score) / chromaFrameQuarters))
+        frame2CueDict[currentFrame].append({"type":"cue","ind":i,"name":cue.content})
+
+    for off, m in measureMap.items():
+        currentFrame = int(np.ceil(off / chromaFrameQuarters))
+        frame2CueDict[currentFrame].append({"type":"bar","ind":m[0].number})
+    return dict(frame2CueDict)
+
 def getChromas(filePath, sr = 44100, n_fft = 8192, window_length = 2048,
                         hop_length = 1024, chromaType = "stft", n_chroma = 12,
-                        norm=np.inf, normAudio = False, windowType='hann',
+                        norm=2, normAudio = False, windowType='hamming',
                         chromafb = None, magPower = 1):
     # TODO if the folders exist, don't generate chromas again.
     ext = str(filePath.parts[-1]).split(".")[-1]

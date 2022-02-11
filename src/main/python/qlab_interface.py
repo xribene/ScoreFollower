@@ -48,7 +48,9 @@ class Client:
 
     def send_message(self, address, value=None):
         msg = osc_message_builder.OscMessageBuilder(address=address)
+        print(value)
         if value:
+            
             msg.add_arg(value)
         self.client.send(msg.build())
 
