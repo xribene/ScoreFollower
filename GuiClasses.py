@@ -186,7 +186,7 @@ class AlignBox(QGroupBox):
     def reset(self):
         self.scatter.clear()
         self.scatter.sigPlotChanged.emit(self.scatter)
-        print(dir(self.scatter))
+        # print(dir(self.scatter))
         print("cleared scatter")
 
 

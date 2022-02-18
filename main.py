@@ -37,8 +37,8 @@ import music21.alpha
 import encodings
 from librosa import * 
 from offline.utils_offline import Params, getChromas, getCuesDict
-from fbs_runtime.application_context.PyQt5 import ApplicationContext
-
+# from fbs_runtime.application_context.PyQt5 import ApplicationContext
+from offline.utils_offline import *
 #####################################################
 ## Qt app instantiation -> thread setup
 #####################################################
@@ -79,7 +79,7 @@ class ScoreFollower(QWidget):
         # logging.getLogger().setLevel(logging.DEBUG)
 
         # initializations
-        self.config = Params(resource_path("extraResources/config.json"))
+        self.config = Params(resource_path("resources/config.json"))
         self.setObjectName("ScoreFollower")
         self.appctxt = appctxt
 
@@ -110,9 +110,9 @@ class ScoreFollower(QWidget):
         # self.cuesDict = getCuesDict(filePath = Path(f"{self.pieceName}.xml"), 
         #                                 sr = self.config.sr, 
         #                                 hop_length = self.config.hop_length)
-        self.cuesDict = np.load(resource_path("extraResources/cuesDict.npy"), allow_pickle=True).item()
-        print(self.cuesDict)
-        print(self.cuesDict.__class__.__name__)
+        self.cuesDict = np.load(resource_path("resources/cuesDict.npy"), allow_pickle=True).item()
+        # print(self.cuesDict)
+        # print(self.cuesDict.__class__.__name__)
         # get the reference chroma vectors
         if self.config.mode == "score" :
             referenceFile = resource_path(f"{self.pieceName}4.mid")
@@ -132,7 +132,7 @@ class ScoreFollower(QWidget):
         #                                           chromafb = None,
         #                                           magPower = self.config.magPower
         #                                           )
-        self.referenceChromas = np.load(resource_path("extraResources/referenceChromas.npy"))
+        self.referenceChromas = np.load(resource_path("resources/referenceChromas.npy"))
 
         # np.save("cuesDict.npy", self.cuesDict)
         # np.save("referenceChromas.npy", self.referenceChromas)
@@ -146,7 +146,7 @@ class ScoreFollower(QWidget):
         if self.config.audioInput == "mic":
             self.testWavFile = None
         else:
-            self.testWavFile = resource_path(f"extraResources/{self.config.audioInput}")
+            self.testWavFile = resource_path(f"resources/{self.config.audioInput}")
 
         self.timer = QtCore.QTimer()
         self.setupThreads()
@@ -267,9 +267,9 @@ class ScoreFollower(QWidget):
         # TODO communicate with audio Recorder using slots (if audio recorder is a thread)
         self.audioRecorder.startStopStream()
         if self.audioRecorder.stopped is True:
-            self.toolbar.playPause.setIcon(QtGui.QIcon(resource_path("extraResources/rec.svg")))
+            self.toolbar.playPause.setIcon(QtGui.QIcon(resource_path("resources/svg/rec.svg")))
         else:
-            self.toolbar.playPause.setIcon(QtGui.QIcon(resource_path("extraResources/pause.svg")))
+            self.toolbar.playPause.setIcon(QtGui.QIcon(resource_path("resources/svg/pause.svg")))
 
     @pyqtSlot(object)
     def updateAlignment(self, args):

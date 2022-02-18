@@ -19,6 +19,7 @@
     "portOut" : 53000,
     "portIn" : 53001,
 
-    "plotPeriod" : 100
+    "plotPeriod" : 25,
+    "audioInput" : "recordedJetee.wav"
 
 }
