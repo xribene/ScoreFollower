@@ -1,4 +1,0 @@
-{
-    "mac_bundle_identifier": "com.xribene.scorefollower",
-    "hidden_imports": ["encodings", "music21", "librosa"]
-}
