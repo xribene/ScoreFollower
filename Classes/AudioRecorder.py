@@ -87,7 +87,7 @@ class AudioRecorder(QObject):
         FORMAT = pyaudio.paInt16
         CHANNELS = 1
         RATE = self.rate
-        WAVE_OUTPUT_FILENAME = "/resource/latestRecorded.wav"
+        WAVE_OUTPUT_FILENAME = "latestRecorded.wav"
         wf = wave.open(WAVE_OUTPUT_FILENAME, 'wb')
         wf.setnchannels(CHANNELS)
         wf.setsampwidth(self.p.get_sample_size(FORMAT))
@@ -105,6 +105,7 @@ class AudioRecorder(QObject):
         self.p.terminate()
         if self.file:
             self.file.close()
+        self.saveRecording()
 
     def closeEverything(self):
         self.closeStream()

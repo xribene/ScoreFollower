@@ -70,13 +70,14 @@ class Aligner(QObject):
         self.i = 0
         self.bStart = 0
         self.durs = []
+        self.chromaQueue.queue.clear()
         if self.reachedEnd is True:
             self.reachedEnd = False
-            self.align()
+            # self.align() # this is wrong. blocks UI
 
     @pyqtSlot()
     def align(self):
-        logging.debug("MESAAAAAAAAAAAAA")
+        logging.debug(f"MESAAAAAAAAAAAAA {self.j} {self.frameNumScore-1}")
         while(self.j < self.frameNumScore-1):
             logging.debug(f"J = {self.j}")
             aa = time.time()

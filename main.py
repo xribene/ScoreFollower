@@ -225,7 +225,7 @@ class ScoreFollower(QWidget):
         # self.referenceChromas = np.repeat(self.referenceChromas, list(repeats), axis=0)
     def setupThreads(self):
         self.readQueue = queue.Queue()
-        self.chromaBuffer = queue.LifoQueue(10000)
+        self.chromaBuffer = queue.LifoQueue(10)
         ## threads
         self.audioThread = QThread()
         self.audioRecorder = AudioRecorder(queue = self.readQueue, 
@@ -297,6 +297,7 @@ class ScoreFollower(QWidget):
         self.audioRecorder.reset()
         self.aligner.reset()
         self.alignGroup.reset()
+        self.startAligner()
         logging.debug("reset")
         # self.timer.stop()
         # print(np.mean(self.aligner.durs))
@@ -313,7 +314,7 @@ class ScoreFollower(QWidget):
         # self.signalToAligner.connect(self.aligner.align)
         # gui 
         self.toolbar.playPause.triggered.connect(self.startStopRecording)
-        # self.aligner.signalEnd.connect(self.stopAligner)
+        self.aligner.signalEnd.connect(self.alignerStoppedCallback)
         # ! remove that after testing
         self.toolbar.reset.triggered.connect(self.reset)
         # self.toolbar.save.triggered.connect(self.startAligner)
@@ -326,6 +327,8 @@ class ScoreFollower(QWidget):
         # QLabBox signals
         self.qLabGroup.clientManualMessageText.returnPressed.connect(self.qLabInterface.sentManualOscMessage)
     
+    def alignerStoppedCallback(self):
+        self.startStopRecording()
 
     def closeEvent(self, event):
         
@@ -353,8 +356,9 @@ class ScoreFollower(QWidget):
                 for event in events:
                     if event['type'] == 'cue':
                         self.qLabInterface.sendCueTrigger(event)
-                        self.scoreGroup.cueLcd.display(event["ind"])
+                        self.scoreGroup.cueLcd.display(int(event["name"]))
                     elif event['type'] == 'bar':
+                        self.qLabInterface.sendBarTrigger(event)
                         self.scoreGroup.barLcd.display(event["ind"])
         self.lastJ = j
         # spot = [{'pos': np.array(args), 'data': 1}]

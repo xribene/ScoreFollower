@@ -228,7 +228,11 @@ class QLabInterface(QObject):
         # self.rspTimer.setSingleShot(True)
         # self.rspTimer.singleShot(3000, self.connectionLost)
     def sendCueTrigger(self, cue):
-        address = f"/workspace/{self.workspaceID}/playhead/{cue['ind']}"
+        address = f"/workspace/{self.workspaceID}/playhead/{int(cue['name'])}"
+        self.oscClient.emit(address, arg = None)
+        self.updateClientText(address, args = None)
+    def sendBarTrigger(self, cue):
+        address = f"/bar/{cue['ind']}"
         self.oscClient.emit(address, arg = None)
         self.updateClientText(address, args = None)
 
