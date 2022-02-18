@@ -150,8 +150,9 @@ class Aligner(QObject):
         # else:
         logging.debug(f"END OF WHILE")
         # if self.reachedEnd is False:
-        self.signalEnd.emit()
         self.reachedEnd = True
+        self.signalEnd.emit()
+        
             
            
             

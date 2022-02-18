@@ -158,10 +158,10 @@ class ScoreFollower(QWidget):
             print("in pieceSelectionChange setNewAudioSource")
 
     def updateAudioSourceMenu(self):
-        # testAudios =  [f.parts[-1] for f in Path(resource_path(f"resources/Pieces/{self.pieceName}/testAudio")).iterdir() if f.is_file()]
-        testAudios2 =  [f for f in Path(f"resources/Pieces/{self.pieceName}/testAudio").iterdir()]
+        testAudios =  [f.parts[-1] for f in Path(resource_path(f"resources/Pieces/{self.pieceName}/testAudio")).iterdir() if f.is_file()]
+        # testAudios2 =  [f for f in Path(f"resources/Pieces/{self.pieceName}/testAudio").iterdir()]
 
-        logging.debug(f"available testAudios {testAudios2}")
+        # logging.debug(f"available testAudios {testAudios2}")
         self.scoreGroup.dropdownAudioSource.clear()
         self.scoreGroup.dropdownAudioSource.addItems(testAudios)
         self.scoreGroup.dropdownAudioSource.addItem("microphone")
@@ -186,6 +186,7 @@ class ScoreFollower(QWidget):
             self.audioRecorder.createStream(self.audioSourceName) 
             print(f"in setNewAudioSource created stream for microphone")
         else:
+            print(f"self.audioSourceName is {self.audioSourceName}")
             self.audioRecorder.createStream(resource_path(f"resources/Pieces/{self.pieceName}/testAudio/{self.audioSourceName}"))
             print(f"in setNewAudioSource created stream for resources/Pieces/{self.pieceName}/testAudio/{self.audioSourceName}")
 
@@ -218,17 +219,22 @@ class ScoreFollower(QWidget):
         #                                           )
         self.referenceChromas = np.load(resource_path(f"resources/Pieces/{self.pieceName}/referenceAudioChromas_{self.pieceName}.npy"))
 
+        
         # np.save("cuesDict.npy", self.cuesDict)
         # np.save("referenceChromas.npy", self.referenceChromas)
         # logging.debug(f"reference Chromas shape is {self.referenceChromas.shape}")
         # print(self.referenceChromas.shape)
         # repeats = np.ones((self.referenceChromas.shape[0]))
-        # repeats[600:800] = 2
+        # repeats[600:900] = 2
         # repeats[1500:1700] = 2
         # self.referenceChromas = np.repeat(self.referenceChromas, list(repeats), axis=0)
+
+        self.alignGroup.plot.setXRange(0, self.referenceChromas.shape[0]+500, padding=0)
+        self.alignGroup.plot.setYRange(0, self.referenceChromas.shape[0]+500, padding=0)
+
     def setupThreads(self):
         self.readQueue = queue.Queue()
-        self.chromaBuffer = queue.LifoQueue(10)
+        self.chromaBuffer = queue.LifoQueue(1000)
         ## threads
         self.audioThread = QThread()
         self.audioRecorder = AudioRecorder(queue = self.readQueue, 
@@ -331,6 +337,7 @@ class ScoreFollower(QWidget):
         self.qLabGroup.clientManualMessageText.returnPressed.connect(self.qLabInterface.sentManualOscMessage)
     
     def alignerStoppedCallback(self):
+        print(f"IN SIGNAL END FROM ALIGNER ABOUT TO STOP RECORDING")
         self.startStopRecording()
 
     def closeEvent(self, event):

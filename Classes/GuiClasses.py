@@ -13,6 +13,12 @@ import logging
 
 import numpy as np
 
+class QComboBoxBlocking(QComboBox):
+    def setCurrentIndex(self, ix):
+        self.blockSignals(True)
+        QComboBox.setCurrentText(self, ix)
+        self.blockSignals(False)
+
 class QLabBox(QGroupBox):
     def __init__(self, appctxt, parent):
         super(QLabBox, self).__init__()
@@ -123,8 +129,8 @@ class ScoreBox(QGroupBox):
         self.barLabel.setBuddy(self.barLcd)
         self.cueLabel.setBuddy(self.cueLcd)
 
-        self.dropdownPiece = QComboBox(self)
-        self.dropdownAudioSource = QComboBox(self)
+        self.dropdownPiece = QComboBoxBlocking(self)
+        self.dropdownAudioSource = QComboBoxBlocking(self)
         # self.dropdown.addItem("Jetee")
 
         self.layout.addWidget(self.dropdownPiece, 0, 0, 1, 1,Qt.AlignCenter)
@@ -168,7 +174,12 @@ class AlignBox(QGroupBox):
         # self.plot = pg.plot()
         self.scatter = pg.ScatterPlotItem(
             size=3, brush=pg.mkBrush(255, 255, 255, 120))
+        
         self.plot.addItem(self.scatter)
+        # self.plot.setXRange(0, 2000, padding=0)
+        # self.plot.setYRange(0, 2000, padding=0)
+        
+
         # layout
         
         
