@@ -25,19 +25,18 @@ from scipy.spatial.distance import cdist
 import numpy as np
 from matplotlib import pyplot as plt
 ###############################################
-from AudioRecorder import AudioRecorder
-from Chromatizer import Chromatizer
-from Aligner import Aligner
+from Classes.AudioRecorder import AudioRecorder
+from Classes.Chromatizer import Chromatizer
+from Classes.Aligner import Aligner
 # from OSCClient import OSCclient
-from MenuBar import MenuBar
-from ToolBar import ToolBar
-from OSC import ClientOSC, ServerOSC
-from GuiClasses import *
+from Classes.MenuBar import MenuBar
+from Classes.ToolBar import ToolBar
+from Classes.OSC import ClientOSC, ServerOSC
+from Classes.GuiClasses import *
 import music21.alpha
 import encodings
 from librosa import * 
 from offline.utils_offline import Params, getChromas, getCuesDict
-# from fbs_runtime.application_context.PyQt5 import ApplicationContext
 from offline.utils_offline import *
 #####################################################
 ## Qt app instantiation -> thread setup
@@ -72,6 +71,7 @@ class ScoreFollower(QWidget):
     signalToAligner = pyqtSignal()
     def __init__(self, appctxt):
         super(ScoreFollower, self).__init__()
+        self.setupFinished = False
         # Set the logger
         # logTextBox = QTextEditLogger(self)
         # logTextBox.setFormatter(logging.Formatter('%(asctime)s.%(msecs)05d %(levelname)s %(module)s - %(funcName)s -%(threadName)s -%(lineno)s: %(message)s'))
@@ -102,22 +102,103 @@ class ScoreFollower(QWidget):
         self.resize(1000,1000)
         self.show()
 
-        ## Initializations 
+        ## setup threads/slots
+        self.timer = QtCore.QTimer()
+        self.setupThreads()
+        
+        ## set dropdown menus
+        self.audioSourceName = ""
+        scoreNames =  [f.parts[-1] for f in Path(resource_path(f"resources/Pieces")).iterdir() if f.is_dir()]
+        self.scoreGroup.dropdownPiece.addItems(scoreNames)
+        self.scoreGroup.dropdownPiece.currentIndexChanged.connect(self.pieceSelectionChange)
+        self.scoreGroup.dropdownAudioSource.currentIndexChanged.connect(self.audioSourceSelectionChange)
+        self.pieceName = scoreNames[0] # TODO get that from the dropdown menu
+        self.setNewPiece()
+        self.updateAudioSourceMenu()
+        
+        ## this had to go after creating audioRecorder       
+        self.setNewAudioSource()
+
         self.plotEvery = self.config.plotPeriod
         self.lastJ = -1
-        self.pieceName = "jetee" # TODO get that from the dropdown menu
+        
+        self.alignerThread = QThread()
+        self.aligner = Aligner(self.referenceChromas, self.chromaBuffer,
+                                n_chroma = self.config.n_chroma, 
+                                c = self.config.c, 
+                                maxRunCount = self.config.maxRunCount, 
+                                metric = self.config.metric,
+                                w = self.config.w_diag)
+        self.aligner.moveToThread(self.alignerThread)
+        self.alignerThread.start()
+
+        self.signalsandSlots()
+        self.startAligner()
+
+        # # self.testWavFile = f"{self.pieceName}FF.wav")
+        # if self.config.audioInput == "mic":
+        #     self.audioSource = "microphone"
+        # else:
+        #     self.testWavFile = resource_path(f"resources/TestAudio/{self.pieceName}/{self.config.audioInput}")
+        self.setupFinished = True
+
+        
+
+    def pieceSelectionChange(self,i):
+        print("in pieceSelectionChange")
+        if self.setupFinished:
+            self.reset()
+        if self.pieceName != self.scoreGroup.dropdownPiece.currentText():
+            self.pieceName = self.scoreGroup.dropdownPiece.currentText()
+            self.setNewPiece()
+            print("in pieceSelectionChange setted New Piece")
+            self.updateAudioSourceMenu()
+            print("in pieceSelectionChange updated AudioSourceMenu")
+            self.setNewAudioSource()
+            print("in pieceSelectionChange setNewAudioSource")
+
+    def updateAudioSourceMenu(self):
+        testAudios =  [f.parts[-1] for f in Path(resource_path(f"resources/Pieces/{self.pieceName}/testAudio")).iterdir() if f.is_file()]
+        self.scoreGroup.dropdownAudioSource.clear()
+        self.scoreGroup.dropdownAudioSource.addItems(testAudios)
+        self.scoreGroup.dropdownAudioSource.addItem("microphone")
+        
+        self.audioSourceName = "microphone" # testAudios[0]
+        self.scoreGroup.dropdownAudioSource.setCurrentText(self.audioSourceName)
+
+    def audioSourceSelectionChange(self,):
+        if self.setupFinished:
+            self.reset()
+        print("in audioSourceSelectionChange")
+        if self.audioSourceName != self.scoreGroup.dropdownAudioSource.currentText():
+            print("in audioSourceSelectionChange new name")
+            self.audioSourceName = self.scoreGroup.dropdownAudioSource.currentText()
+            print(f"in audioSourceSelectionChange new name is {self.audioSourceName}")
+            self.setNewAudioSource()
+
+    def setNewAudioSource(self):
+        print(f"in setNewAudioSource")
+        self.audioRecorder.closeStream()
+        if self.audioSourceName == "microphone":
+            self.audioRecorder.createStream(self.audioSourceName) 
+            print(f"in setNewAudioSource created stream for microphone")
+        else:
+            self.audioRecorder.createStream(resource_path(f"resources/Pieces/{self.pieceName}/testAudio/{self.audioSourceName}"))
+            print(f"in setNewAudioSource created stream for resources/Pieces/{self.pieceName}/testAudio/{self.audioSourceName}")
+
+
+    def setNewPiece(self):
         # get the cues dict
         # self.cuesDict = getCuesDict(filePath = Path(f"{self.pieceName}.xml"), 
         #                                 sr = self.config.sr, 
         #                                 hop_length = self.config.hop_length)
-        self.cuesDict = np.load(resource_path("resources/cuesDict.npy"), allow_pickle=True).item()
-        # print(self.cuesDict)
-        # print(self.cuesDict.__class__.__name__)
+        print(f"in setNewPiece")
+        self.cuesDict = np.load(resource_path(f"resources/Pieces/{self.pieceName}/cuesDict_{self.pieceName}.npy"), allow_pickle=True).item()
         # get the reference chroma vectors
         if self.config.mode == "score" :
-            referenceFile = resource_path(f"{self.pieceName}4.mid")
+            referenceFile = resource_path(f"resources/Pieces/{self.pieceName}/{self.pieceName}.mid")
         elif self.config.mode == "audio" : 
-            referenceFile = resource_path(f"{self.pieceName}FF.wav")
+            referenceFile = resource_path(f"resources/Pieces/{self.pieceName}/{self.pieceName}.wav")
         
         # self.referenceChromas = getChromas(Path(referenceFile), 
         #                                           sr = self.config.sr,
@@ -132,34 +213,23 @@ class ScoreFollower(QWidget):
         #                                           chromafb = None,
         #                                           magPower = self.config.magPower
         #                                           )
-        self.referenceChromas = np.load(resource_path("resources/referenceChromas.npy"))
+        self.referenceChromas = np.load(resource_path(f"resources/Pieces/{self.pieceName}/referenceAudioChromas_{self.pieceName}.npy"))
 
         # np.save("cuesDict.npy", self.cuesDict)
         # np.save("referenceChromas.npy", self.referenceChromas)
-        logging.debug(f"reference Chromas shape is {self.referenceChromas.shape}")
-        print(self.referenceChromas.shape)
-        repeats = np.ones((self.referenceChromas.shape[0]))
+        # logging.debug(f"reference Chromas shape is {self.referenceChromas.shape}")
+        # print(self.referenceChromas.shape)
+        # repeats = np.ones((self.referenceChromas.shape[0]))
         # repeats[600:800] = 2
         # repeats[1500:1700] = 2
         # self.referenceChromas = np.repeat(self.referenceChromas, list(repeats), axis=0)
-        # self.testWavFile = f"{self.pieceName}FF.wav")
-        if self.config.audioInput == "mic":
-            self.testWavFile = None
-        else:
-            self.testWavFile = resource_path(f"resources/{self.config.audioInput}")
-
-        self.timer = QtCore.QTimer()
-        self.setupThreads()
-        self.signalsandSlots()
-        self.startAligner()
-
     def setupThreads(self):
         self.readQueue = queue.Queue()
         self.chromaBuffer = queue.LifoQueue(10000)
         ## threads
         self.audioThread = QThread()
         self.audioRecorder = AudioRecorder(queue = self.readQueue, 
-                                           wavfile =  self.testWavFile, # None,#
+                                        #    wavfile =  self.testWavFile, # None,#
                                            rate = self.config.sr,
                                            # ! be careful, audio streams chunk is 
                                            # ! equal to the hop_length
@@ -194,14 +264,14 @@ class ScoreFollower(QWidget):
         self.oscServer = ServerOSC(port = self.config.portIn)
         self.oscServer.moveToThread(self.oscServerThread)
 
-        self.alignerThread = QThread()
-        self.aligner = Aligner(self.referenceChromas, self.chromaBuffer,
-                                n_chroma = self.config.n_chroma, 
-                                c = self.config.c, 
-                                maxRunCount = self.config.maxRunCount, 
-                                metric = self.config.metric,
-                                w = self.config.w_diag)
-        self.aligner.moveToThread(self.alignerThread)
+        # self.alignerThread = QThread()
+        # self.aligner = Aligner(self.referenceChromas, self.chromaBuffer,
+        #                         n_chroma = self.config.n_chroma, 
+        #                         c = self.config.c, 
+        #                         maxRunCount = self.config.maxRunCount, 
+        #                         metric = self.config.metric,
+        #                         w = self.config.w_diag)
+        # self.aligner.moveToThread(self.alignerThread)
 
         self.qLabInterface = QLabInterface(self.appctxt, self.oscClient, self.oscClient, self.qLabGroup)
 
@@ -210,7 +280,7 @@ class ScoreFollower(QWidget):
         self.oscClientThread.start()
         
         # self.oscServerThread.start()
-        self.alignerThread.start()
+        # self.alignerThread.start()
         logging.debug("setup threads done")
 
 
@@ -259,7 +329,7 @@ class ScoreFollower(QWidget):
 
     def closeEvent(self, event):
         
-        self.audioRecorder.closeStream()
+        self.audioRecorder.closeEverything()
         self.oscServer.shutdown()
         logging.debug(f"close Event")
 
