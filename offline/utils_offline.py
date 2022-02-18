@@ -238,3 +238,18 @@ def resource_path(relative_path):
         base_path = os.path.abspath(".")
 
     return os.path.join(base_path, relative_path)
+
+def returnCorrectFile(path, ext):
+    pieceName = path.parts[-1]
+    files = [f for f in path.iterdir() if f.is_file()]
+    listOfFiles = [f for f in files if f.suffix == f'.{ext}']
+    if (len(listOfFiles) == 0):
+        print(f"No {ext} files detected in {path}")
+        raise
+    elif (len(listOfFiles) > 1):
+        print(f"Multiple {ext} files found in {path}, expected to find only {pieceName}.{ext}")
+        raise
+    elif (len(listOfFiles) == 1):
+        assert (path/f"{pieceName}.{ext}").is_file(), f"I was expected to find {pieceName}.{ext} in {path}"
+        correctFile = listOfFiles[0]
+    return correctFile

@@ -112,7 +112,7 @@ class ScoreFollower(QWidget):
         self.scoreGroup.dropdownPiece.addItems(scoreNames)
         self.scoreGroup.dropdownPiece.currentIndexChanged.connect(self.pieceSelectionChange)
         self.scoreGroup.dropdownAudioSource.currentIndexChanged.connect(self.audioSourceSelectionChange)
-        self.pieceName = scoreNames[0] # TODO get that from the dropdown menu
+        self.pieceName = "Jetee"  # scoreNames[0]
         self.setNewPiece()
         self.updateAudioSourceMenu()
         
@@ -158,7 +158,10 @@ class ScoreFollower(QWidget):
             print("in pieceSelectionChange setNewAudioSource")
 
     def updateAudioSourceMenu(self):
-        testAudios =  [f.parts[-1] for f in Path(resource_path(f"resources/Pieces/{self.pieceName}/testAudio")).iterdir() if f.is_file()]
+        # testAudios =  [f.parts[-1] for f in Path(resource_path(f"resources/Pieces/{self.pieceName}/testAudio")).iterdir() if f.is_file()]
+        testAudios2 =  [f for f in Path(f"resources/Pieces/{self.pieceName}/testAudio").iterdir()]
+
+        logging.debug(f"available testAudios {testAudios2}")
         self.scoreGroup.dropdownAudioSource.clear()
         self.scoreGroup.dropdownAudioSource.addItems(testAudios)
         self.scoreGroup.dropdownAudioSource.addItem("microphone")
