@@ -20,8 +20,8 @@ import queue #threadsafe queue
 import sys
 from pathlib import Path
 import logging
-from tslearn.metrics import dtw, dtw_path
-from scipy.spatial.distance import cdist
+# from tslearn.metrics import dtw, dtw_path
+# from scipy.spatial.distance import cdist
 import numpy as np
 from matplotlib import pyplot as plt
 ###############################################
