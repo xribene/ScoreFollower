@@ -20,8 +20,8 @@ import queue #threadsafe queue
 import sys
 from pathlib import Path
 import logging
-from tslearn.metrics import dtw, dtw_path
-from scipy.spatial.distance import cdist
+# from tslearn.metrics import dtw, dtw_path
+# from scipy.spatial.distance import cdist
 import numpy as np
 from matplotlib import pyplot as plt
 ###############################################
@@ -224,10 +224,11 @@ class ScoreFollower(QWidget):
         # np.save("referenceChromas.npy", self.referenceChromas)
         # logging.debug(f"reference Chromas shape is {self.referenceChromas.shape}")
         # print(self.referenceChromas.shape)
-        # repeats = np.ones((self.referenceChromas.shape[0]))
-        # repeats[600:900] = 2
+        repeats = np.ones((self.referenceChromas.shape[0]))
+        repeats[600:700] = 2
+        repeats[800:900] = 2
         # repeats[1500:1700] = 2
-        # self.referenceChromas = np.repeat(self.referenceChromas, list(repeats), axis=0)
+        self.referenceChromas = np.repeat(self.referenceChromas, list(repeats), axis=0)
 
         self.alignGroup.plot.setXRange(0, self.referenceChromas.shape[0]+500, padding=0)
         self.alignGroup.plot.setYRange(0, self.referenceChromas.shape[0]+500, padding=0)
