@@ -25,12 +25,7 @@ class Aligner(QObject):
         ##############################################
         # self.scoreChroma = score_chroma
 
-        self.frameNumScore = referenceChromas.shape[0]
-        self.frameNum = referenceChromas.shape[0]
-
-        self.framenumaudio = self.frameNumScore # * 2 # in matlab code they use self.c
-
-        self.pathLenMax = self.frameNumScore + self.framenumaudio
+        
         self.reachedEnd = False
         self.recording = False
         self.pathOverflow = False
@@ -40,6 +35,12 @@ class Aligner(QObject):
     @pyqtSlot()
     def reset(self):
         self.resetActivated = True
+        self.frameNumScore = self.referenceChromas.shape[0]
+        self.frameNum = self.referenceChromas.shape[0]
+
+        self.framenumaudio = self.frameNumScore # * 2 # in matlab code they use self.c
+
+        self.pathLenMax = self.frameNumScore + self.framenumaudio
         self.V = np.transpose(self.referenceChromas)
         self.j = 0
         

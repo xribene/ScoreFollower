@@ -152,8 +152,7 @@ class ScoreFollower(QWidget):
 
     def pieceSelectionChange(self,i):
         print("in pieceSelectionChange")
-        if self.setupFinished:
-            self.reset()
+        
         if self.pieceName != self.scoreGroup.dropdownPiece.currentText():
             self.pieceName = self.scoreGroup.dropdownPiece.currentText()
             self.setNewPiece()
@@ -162,9 +161,11 @@ class ScoreFollower(QWidget):
             print("in pieceSelectionChange updated AudioSourceMenu")
             self.setNewAudioSource()
             print("in pieceSelectionChange setNewAudioSource")
+        if self.setupFinished:
+            self.reset()
 
     def updateAudioSourceMenu(self):
-        testAudios =  [f.parts[-1] for f in Path(resource_path(f"resources/Pieces/{self.pieceName}/testAudio")).iterdir() if f.is_file()]
+        testAudios =  [f.parts[-1] for f in Path(resource_path(f"resources/Pieces/{self.pieceName}/testAudio")).iterdir() if f.is_file() and f.parts[-1]!=".DS_Store"]
         # testAudios2 =  [f for f in Path(f"resources/Pieces/{self.pieceName}/testAudio").iterdir()]
 
         # logging.debug(f"available testAudios {testAudios2}")
@@ -224,7 +225,8 @@ class ScoreFollower(QWidget):
         #                                           magPower = self.config.magPower
         #                                           )
         self.referenceChromas = np.load(resource_path(f"resources/Pieces/{self.pieceName}/referenceAudioChromas_{self.pieceName}.npy"))
-
+        if self.setupFinished:
+            self.aligner.referenceChromas = self.referenceChromas
         
         # np.save("cuesDict.npy", self.cuesDict)
         # np.save("referenceChromas.npy", self.referenceChromas)
