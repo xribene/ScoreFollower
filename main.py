@@ -324,6 +324,9 @@ class ScoreFollower(QWidget):
     @pyqtSlot()
     def reset(self):
         logging.debug("in main reset")
+        if self.audioRecorder.stopped is False:
+            self.startStopRecording()
+            QThread.msleep(1000)
         self.scoreGroup.cueLcd.display(-1)
         self.scoreGroup.barLcd.display(-1)
         self.audioRecorder.reset()
