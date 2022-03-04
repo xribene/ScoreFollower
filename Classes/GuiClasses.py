@@ -118,13 +118,13 @@ class ScoreBox(QGroupBox):
         self.cueLabel = QLabel("Cue")
         self.barLcd = QLCDNumber()
         self.barLcd = QLCDNumber(self)
-        self.barLcd.display(0)
+        self.barLcd.display(-1)
         self.barLcd.setDigitCount(3)
         # self.barLcd.setFixedHeight(35)
         # self.barLcd.setFixedWidth(35)
         self.cueLcd = QLCDNumber()
         self.cueLcd = QLCDNumber(self)
-        self.cueLcd.display(0)
+        self.cueLcd.display(-1)
         self.cueLcd.setDigitCount(3)
         self.barLabel.setBuddy(self.barLcd)
         self.cueLabel.setBuddy(self.cueLcd)
@@ -198,7 +198,7 @@ class AlignBox(QGroupBox):
 
     def reset(self):
         self.scatter.clear()
-        self.scatter.sigPlotChanged.emit(self.scatter)
+        # self.scatter.sigPlotChanged.emit(self.scatter)
         # print(dir(self.scatter))
         print("cleared scatter")
 

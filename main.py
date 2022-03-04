@@ -103,7 +103,8 @@ class ScoreFollower(QWidget):
         self.show()
 
         ## setup threads/slots
-        self.timer = QtCore.QTimer()
+        
+        
         self.setupThreads()
         
         ## set dropdown menus
@@ -133,6 +134,11 @@ class ScoreFollower(QWidget):
         self.alignerThread.start()
 
         self.signalsandSlots()
+
+        self.timer = QtCore.QTimer()
+        self.timer.setSingleShot(True)
+        self.timer.timeout.connect(self.aligner.align)
+
         self.startAligner()
 
         # # self.testWavFile = f"{self.pieceName}FF.wav")
@@ -228,7 +234,7 @@ class ScoreFollower(QWidget):
         repeats[600:700] = 2
         repeats[800:900] = 2
         # repeats[1500:1700] = 2
-        self.referenceChromas = np.repeat(self.referenceChromas, list(repeats), axis=0)
+        # self.referenceChromas = np.repeat(self.referenceChromas, list(repeats), axis=0)
 
         self.alignGroup.plot.setXRange(0, self.referenceChromas.shape[0]+500, padding=0)
         self.alignGroup.plot.setYRange(0, self.referenceChromas.shape[0]+500, padding=0)
@@ -299,21 +305,38 @@ class ScoreFollower(QWidget):
     #     self.signalToAligner.emit()
 
     def startAligner(self):
-        logging.debug("to start timer")
-        self.timer.setSingleShot(True)
-        self.timer.singleShot(1000, self.aligner.align)
+        # if self.timer:
+        #     logging.debug("deleting previous timer")
+        #     self.timer.stop()
+        #     self.timer.deleteLater()
+        logging.debug("refiring singleShot timer")
+        # self.timer = QtCore.QTimer()
+        # self.timer.timeout.connect(self.aligner.align)
+        # self.timer.setSingleShot(True)
+        self.aligner.resetActivated = False
+        self.timer.start(100)
 
+        # self.timer.setSingleShot(True)
+        # self.timer.singleShot(1000, self.aligner.align)
+
+    @pyqtSlot()
     def reset(self):
+        logging.debug("in main reset")
+        self.scoreGroup.cueLcd.display(-1)
+        self.scoreGroup.barLcd.display(-1)
         self.audioRecorder.reset()
         self.aligner.reset()
         self.alignGroup.reset()
+        # self.alignGroup.scatter.clear()
+        # self.alignGroup.scatter.sigPlotChanged.emit(self.alignGroup.scatter)
         self.startAligner()
-        logging.debug("reset")
+        logging.debug("finished main reset")
         # self.timer.stop()
         # print(np.mean(self.aligner.durs))
 
     def plotCurrentPath(self):
         recordedChromas = np.array(self.chromatizer.chromasList)[:,:,0]
+        
         np.save("recordedChromas", recordedChromas)
 
     def signalsandSlots(self):
@@ -337,9 +360,11 @@ class ScoreFollower(QWidget):
         # QLabBox signals
         self.qLabGroup.clientManualMessageText.returnPressed.connect(self.qLabInterface.sentManualOscMessage)
     
+    @pyqtSlot()
     def alignerStoppedCallback(self):
         print(f"IN SIGNAL END FROM ALIGNER ABOUT TO STOP RECORDING")
         self.startStopRecording()
+        # self.reset()
 
     def closeEvent(self, event):
         
@@ -347,13 +372,19 @@ class ScoreFollower(QWidget):
         self.oscServer.shutdown()
         logging.debug(f"close Event")
 
+    @pyqtSlot()
     def startStopRecording(self):
         # TODO communicate with audio Recorder using slots (if audio recorder is a thread)
+        logging.debug(f"before {self.audioRecorder.stopped}")
         self.audioRecorder.startStopStream()
+        logging.debug(f"after {self.audioRecorder.stopped}")
         if self.audioRecorder.stopped is True:
+            self.aligner.recording = False
             self.toolbar.playPause.setIcon(QtGui.QIcon(resource_path("resources/svg/rec.svg")))
         else:
+            self.aligner.recording = True
             self.toolbar.playPause.setIcon(QtGui.QIcon(resource_path("resources/svg/pause.svg")))
+        logging.debug(f"set aligner.recording to {self.aligner.recording}")
 
     @pyqtSlot(object)
     def updateAlignment(self, args):
