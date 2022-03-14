@@ -33,12 +33,15 @@ class ClientOSC(QObject):
         self.client = udp_client.UDPClient(self.ip, port)
 
 class ServerOSC(QObject):
-    serverSignal = pyqtSignal(object)
-    
+    serverSignalFromQlab = pyqtSignal(object)
+    serverSignalFromTouchDesigner = pyqtSignal(object)
+    serverSignalFromUknownSource = pyqtSignal(object)
+
     def __init__(self, ip = "127.0.0.1", port = 53000):
         QObject.__init__(self)
         disp = dispatcher.Dispatcher()
-        disp.map("/reply/*", self.globalReceiver)
+        disp.map("/reply/*", self.replyReceiver)
+        disp.map("/response/*", self.responseReceiver)
         disp.set_default_handler(self.globalReceiver)
         # disp.map
         self.server = osc_server.BlockingOSCUDPServer((ip, port), disp)
@@ -49,8 +52,14 @@ class ServerOSC(QObject):
         self.serverThread.start()
 
     def globalReceiver(self, address, *args):
-        # logging.debug(f"global receiver got {address} {args}")
-        self.serverSignal.emit([address, args])
+        logging.debug(f"global receiver got {address} {args}")
+        self.serverSignalFromUknownSource.emit([address, args])
+    def replyReceiver(self, address, *args):
+        logging.debug(f"qlab receiver got {address} {args}")
+        self.serverSignalFromQlab.emit([address, args])
+    def responseReceiver(self, address, *args):
+        logging.debug(f"touch receiver got {address} {args}")
+        self.serverSignalFromTouchDesigner.emit([address, args])
 
     @pyqtSlot()
     def shutdown(self):

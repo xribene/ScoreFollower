@@ -1,7 +1,7 @@
 ###########import statements#################
 ##standard PyQt imports (thanks christos!)###
 from PyQt5 import QtGui, QtCore, QtSvg
-from PyQt5.QtWidgets import (QComboBox, 
+from PyQt5.QtWidgets import (QComboBox,  QPushButton,
         QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
         QTextEdit,  QVBoxLayout, QLCDNumber,QLabel, QHBoxLayout, QTextEdit, QGridLayout)
 
@@ -40,10 +40,13 @@ class QLabBox(QGroupBox):
         self.appctxt = appctxt
         self.layout = QHBoxLayout(self)
 
+
         # self.status = QStatusBar(self)
         # self.status.showMessage("Disconnected")
         # self.status.setStyleSheet("background-color: rgb(0, 255, 0);")
 
+        self.connectButton = QPushButton("refresh")
+        
         self.clientManualMessageText = QLineEdit(self)
         self.clientAutoMessageText = QTextEdit()
         self.cursor1 = QtGui.QTextCursor(self.clientAutoMessageText.document())
@@ -69,6 +72,7 @@ class QLabBox(QGroupBox):
         self.sendLayout.addWidget(self.clientAutoMessageText)
         self.sendGroup.setLayout(self.sendLayout)
 
+        self.layout.addWidget(self.connectButton)
         self.layout.addWidget(self.sendGroup)
         self.layout.addWidget(self.receiveGroup)
 
@@ -217,9 +221,9 @@ class QLabInterface(QObject):
         self.connectionStatus = False
         self.greetingsCnt = 0
         self.greetingsRsp = 0
-        self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.checkConnection)
-        self.timer.start(1000)
+        # self.timer = QtCore.QTimer()
+        # self.timer.timeout.connect(self.checkConnection)
+        # self.timer.start(1000)
 
         self.thumpsCnt = 0
         # self.thumpsRsp = 0
@@ -295,12 +299,19 @@ class QLabInterface(QObject):
                 self.qLabGroup.setGreenTitle(self.workspaceID)
         # logging.debug(f"Thump Response {address} and {args}")
 
-    def updateListenerText(self, address, args):
+    def updateListenerText(self, source, address, args):
         if isinstance(address, str):
             address = address.split("/")[1:]
         self.qLabGroup.cursor2.setPosition(0)
         self.qLabGroup.serverMessageText.setTextCursor(self.qLabGroup.cursor2)
-        self.qLabGroup.serverMessageText.insertHtml(f"/{'/'.join(address)}<br>{args}<br><br>")
+        self.qLabGroup.serverMessageText.insertHtml(f"<b style='color:green;'>{source}</b><br>/{'/'.join(address)}<br>{args}<br><br>")
+
+    def updateListenerTextUnformatted(self, source, address, args):
+        if isinstance(address, str):
+            address = address.split("/")[1:]
+        self.qLabGroup.cursor2.setPosition(0) # <b style='color:red;'>English</b>
+        self.qLabGroup.serverMessageText.setTextCursor(self.qLabGroup.cursor2)
+        self.qLabGroup.serverMessageText.insertHtml(f"<b style='color:red;'>{source}</b><br>{address}<br>{args}<br><br>")
 
     def updateClientText(self, address, args):
         if isinstance(address, str):
@@ -314,19 +325,46 @@ class QLabInterface(QObject):
         address = load[0]
         args = load[1]
         addressParts = address.split("/")[1:]
-
+        shown = False
         # first part should be always "reply"
         # print(addressParts)
         if addressParts[0] != "reply":
-            raise
-        
-        # check if this is a response to Version
-        if addressParts[1] == "version":
-            self.versionCallback(addressParts, args)
-        else:
+            raise # TODO not a good idea to raise like this
+        # logging.debug(f"QLabInterface osc receiver got {address} and args {args}")
+        # check if this is a response to Version    
+
+        if len(addressParts) > 0:
+            if addressParts[1] == "version":
+                self.versionCallback(addressParts, args)
+                
+
+        if len(addressParts) > 2:
             # check if this is a response to THUMP
             if addressParts[3] == "thump":
                 self.thumpCallback(addressParts, args)
             else:
-                self.updateListenerText(addressParts, args)
+                self.updateListenerText("qLab", addressParts, args)
                 logging.debug(f"QLabInterface osc receiver got {address} and {args}")
+                shown = True
+        if shown is False:
+            self.updateListenerText("qLab", addressParts, args)
+    
+    def touchResponseCallbackRouter(self, load):
+        address = load[0]
+        args = load[1]
+        addressParts = address.split("/")[1:]
+
+        # first part should be always "reply"
+        # print(addressParts)
+        if addressParts[0] != "response":
+            logging.error(f"TouchResponseCallback got {address} and args {args}")
+            raise # TODO not a good idea to raise like this
+        
+        # check if this is a response to Version
+
+        self.updateListenerText("touchDesigner", addressParts, args)
+
+    def unknownResponseCallbackRouter(self, load):
+        address = load[0]
+        args = load[1]
+        self.updateListenerTextUnformatted("unkown", address, args)

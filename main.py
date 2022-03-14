@@ -110,15 +110,35 @@ class ScoreFollower(QWidget):
         ## set dropdown menus
         self.audioSourceName = ""
         scoreNames =  [f.parts[-1] for f in Path(resource_path(f"resources/Pieces")).iterdir() if f.is_dir()]
+        self.pieceName = "Jetee"  # scoreNames[0]
+        testAudios =  [f.parts[-1] for f in Path(resource_path(f"resources/Pieces/{self.pieceName}/testAudio")).iterdir() if f.is_file() and f.parts[-1]!=".DS_Store"]
+        # self.audioSourceName = "microphone" # testAudios[0]
+
+        # self.scoreGroup.dropdownAudioSource.blockSignals(True)
+        # self.scoreGroup.dropdownAudioSource.clear()
+        # self.scoreGroup.dropdownAudioSource.addItems(testAudios)
+        # self.scoreGroup.dropdownAudioSource.addItem("microphone")
+        # self.scoreGroup.dropdownAudioSource.setCurrentText(self.audioSourceName)
+        # self.scoreGroup.dropdownAudioSource.blockSignals(False)
+        self.updateAudioSourceMenu()
+
+        self.scoreGroup.dropdownPiece.blockSignals(True)
         self.scoreGroup.dropdownPiece.addItems(scoreNames)
+        self.scoreGroup.dropdownPiece.setCurrentText(self.pieceName)
+        self.scoreGroup.dropdownPiece.blockSignals(False)
+
         self.scoreGroup.dropdownPiece.currentIndexChanged.connect(self.pieceSelectionChange)
         self.scoreGroup.dropdownAudioSource.currentIndexChanged.connect(self.audioSourceSelectionChange)
-        self.pieceName = "Jetee"  # scoreNames[0]
+
+        # self.pieceName = "Jetee"  # scoreNames[0]
         self.setNewPiece()
-        self.updateAudioSourceMenu()
+        self.setNewAudioSource()
+        # self.updateAudioSourceMenu()
+        # self.audioSourceName = "microphone" # testAudios[0]
+        # self.scoreGroup.dropdownAudioSource.setCurrentText(self.audioSourceName)
         
         ## this had to go after creating audioRecorder       
-        self.setNewAudioSource()
+        # self.setNewAudioSource()
 
         self.plotEvery = self.config.plotPeriod
         self.lastJ = -1
@@ -171,13 +191,14 @@ class ScoreFollower(QWidget):
         # logging.debug(f"available testAudios {testAudios2}")
         self.scoreGroup.dropdownAudioSource.blockSignals(True)
         self.scoreGroup.dropdownAudioSource.clear()
-        
         self.scoreGroup.dropdownAudioSource.addItems(testAudios)
-        self.scoreGroup.dropdownAudioSource.addItem("microphone")
+        self.audioSourceName = "microphone" # testAudios[0]
+        self.scoreGroup.dropdownAudioSource.addItem(self.audioSourceName)
+        self.scoreGroup.dropdownAudioSource.setCurrentText(self.audioSourceName)
         self.scoreGroup.dropdownAudioSource.blockSignals(False)
         
-        self.audioSourceName = "microphone" # testAudios[0]
-        self.scoreGroup.dropdownAudioSource.setCurrentText(self.audioSourceName)
+        # self.audioSourceName = "microphone" # testAudios[0]
+        # self.scoreGroup.dropdownAudioSource.setCurrentText(self.audioSourceName)
 
     def audioSourceSelectionChange(self,):
         if self.setupFinished:
@@ -300,6 +321,7 @@ class ScoreFollower(QWidget):
         self.chromaThread.start()
         self.oscClientThread.start()
         
+        self.qLabInterface.checkConnection()
         # self.oscServerThread.start()
         # self.alignerThread.start()
         logging.debug("setup threads done")
@@ -363,10 +385,13 @@ class ScoreFollower(QWidget):
         # self.toolbar.preferences.triggered.connect(self.stopAligner)
 
         # self.oscServer.serverSignal.connect(self.oscReceiverCallback)
-        self.oscServer.serverSignal.connect(self.qLabInterface.qLabResponseCallbackRouter)
+        self.oscServer.serverSignalFromQlab.connect(self.qLabInterface.qLabResponseCallbackRouter)
+        self.oscServer.serverSignalFromTouchDesigner.connect(self.qLabInterface.touchResponseCallbackRouter)
+        self.oscServer.serverSignalFromUknownSource.connect(self.qLabInterface.unknownResponseCallbackRouter)
 
         # QLabBox signals
         self.qLabGroup.clientManualMessageText.returnPressed.connect(self.qLabInterface.sentManualOscMessage)
+        self.qLabGroup.connectButton.clicked.connect(self.qLabInterface.checkConnection)
     
     @pyqtSlot()
     def alignerStoppedCallback(self):
