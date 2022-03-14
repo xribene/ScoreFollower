@@ -26,7 +26,7 @@ class Listener:
             self.last_message = json.loads(json_message)
             print(self.last_message)
         except json.decoder.JSONDecodeError as e:
-            print('Error. server raw response:', repr(raw))
+            print('Error. listener raw response:', repr(raw))
             print('parts', parts)
             print(e)
             self.last_message = None
