@@ -169,9 +169,12 @@ class ScoreFollower(QWidget):
         # testAudios2 =  [f for f in Path(f"resources/Pieces/{self.pieceName}/testAudio").iterdir()]
 
         # logging.debug(f"available testAudios {testAudios2}")
+        self.scoreGroup.dropdownAudioSource.blockSignals(True)
         self.scoreGroup.dropdownAudioSource.clear()
+        
         self.scoreGroup.dropdownAudioSource.addItems(testAudios)
         self.scoreGroup.dropdownAudioSource.addItem("microphone")
+        self.scoreGroup.dropdownAudioSource.blockSignals(False)
         
         self.audioSourceName = "microphone" # testAudios[0]
         self.scoreGroup.dropdownAudioSource.setCurrentText(self.audioSourceName)
@@ -206,10 +209,10 @@ class ScoreFollower(QWidget):
         print(f"in setNewPiece")
         self.cuesDict = np.load(resource_path(f"resources/Pieces/{self.pieceName}/cuesDict_{self.pieceName}.npy"), allow_pickle=True).item()
         # get the reference chroma vectors
-        if self.config.mode == "score" :
-            referenceFile = resource_path(f"resources/Pieces/{self.pieceName}/{self.pieceName}.mid")
-        elif self.config.mode == "audio" : 
-            referenceFile = resource_path(f"resources/Pieces/{self.pieceName}/{self.pieceName}.wav")
+        # if self.config.mode == "score" :
+        #     referenceFile = resource_path(f"resources/Pieces/{self.pieceName}/{self.pieceName}.mid")
+        # elif self.config.mode == "audio" : 
+        #     referenceFile = resource_path(f"resources/Pieces/{self.pieceName}/{self.pieceName}.wav")
         
         # self.referenceChromas = getChromas(Path(referenceFile), 
         #                                           sr = self.config.sr,

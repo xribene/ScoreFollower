@@ -49,6 +49,7 @@ class AudioRecorder(QObject):
                                     output = True,
                                     frames_per_buffer = self.chunk,
                                     stream_callback = self._wavCallback)
+            logging.debug(f"CHANNELS ARE {self.file.getnchannels()}")
         else:
             self.file = None
             self.stream = self.p.open(format= pyaudio.paInt16,
@@ -123,7 +124,7 @@ class AudioRecorder(QObject):
         data = self.file.readframes(frame_count)
         data = np.frombuffer(data, "int16")
         data_per_channel=[data[chan::self.file.getnchannels()] for chan in range(self.file.getnchannels())]
-    
+        # logging.debug(f"{data_per_channel[0].shape}")
         # mono = (data_per_channel[0] + data_per_channel[1])/2
         mono = data_per_channel[0]
         self.signalToChromatizer.emit(mono)
