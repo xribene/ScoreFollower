@@ -13,6 +13,12 @@ import logging
 
 import numpy as np
 
+class QComboBoxBlocking(QComboBox):
+    def setCurrentIndex(self, ix):
+        self.blockSignals(True)
+        QComboBox.setCurrentText(self, ix)
+        self.blockSignals(False)
+
 class QLabBox(QGroupBox):
     def __init__(self, appctxt, parent):
         super(QLabBox, self).__init__()
@@ -112,19 +118,19 @@ class ScoreBox(QGroupBox):
         self.cueLabel = QLabel("Cue")
         self.barLcd = QLCDNumber()
         self.barLcd = QLCDNumber(self)
-        self.barLcd.display(0)
+        self.barLcd.display(-1)
         self.barLcd.setDigitCount(3)
         # self.barLcd.setFixedHeight(35)
         # self.barLcd.setFixedWidth(35)
         self.cueLcd = QLCDNumber()
         self.cueLcd = QLCDNumber(self)
-        self.cueLcd.display(0)
+        self.cueLcd.display(-1)
         self.cueLcd.setDigitCount(3)
         self.barLabel.setBuddy(self.barLcd)
         self.cueLabel.setBuddy(self.cueLcd)
 
-        self.dropdownPiece = QComboBox(self)
-        self.dropdownAudioSource = QComboBox(self)
+        self.dropdownPiece = QComboBoxBlocking(self)
+        self.dropdownAudioSource = QComboBoxBlocking(self)
         # self.dropdown.addItem("Jetee")
 
         self.layout.addWidget(self.dropdownPiece, 0, 0, 1, 1,Qt.AlignCenter)
@@ -168,7 +174,12 @@ class AlignBox(QGroupBox):
         # self.plot = pg.plot()
         self.scatter = pg.ScatterPlotItem(
             size=3, brush=pg.mkBrush(255, 255, 255, 120))
+        
         self.plot.addItem(self.scatter)
+        # self.plot.setXRange(0, 2000, padding=0)
+        # self.plot.setYRange(0, 2000, padding=0)
+        
+
         # layout
         
         
@@ -187,7 +198,7 @@ class AlignBox(QGroupBox):
 
     def reset(self):
         self.scatter.clear()
-        self.scatter.sigPlotChanged.emit(self.scatter)
+        # self.scatter.sigPlotChanged.emit(self.scatter)
         # print(dir(self.scatter))
         print("cleared scatter")
 
@@ -231,6 +242,7 @@ class QLabInterface(QObject):
         address = f"/workspace/{self.workspaceID}/playhead/{int(cue['name'])}"
         self.oscClient.emit(address, arg = None)
         self.updateClientText(address, args = None)
+        
     def sendBarTrigger(self, cue):
         address = f"/bar/{cue['ind']}"
         self.oscClient.emit(address, arg = None)

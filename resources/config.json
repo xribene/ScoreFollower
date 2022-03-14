@@ -9,7 +9,7 @@
     "chromaType" : "stft",
     "n_chroma" : 12,
     "c" : 200, 
-    "maxRunCount" : 20,
+    "maxRunCount" : 3,
     "norm" :  2,
     "magPower" : 1,
     "metric" : "sqeuclidean",

@@ -25,18 +25,22 @@ class Aligner(QObject):
         ##############################################
         # self.scoreChroma = score_chroma
 
-        self.frameNumScore = referenceChromas.shape[0]
-        self.frameNum = referenceChromas.shape[0]
+        
+        self.reachedEnd = False
+        self.recording = False
+        self.pathOverflow = False
+        self.reset()
+        self.resetActivated = False # TODO prone to errors. The order shouldn't matter
+
+    @pyqtSlot()
+    def reset(self):
+        self.resetActivated = True
+        self.frameNumScore = self.referenceChromas.shape[0]
+        self.frameNum = self.referenceChromas.shape[0]
 
         self.framenumaudio = self.frameNumScore # * 2 # in matlab code they use self.c
 
         self.pathLenMax = self.frameNumScore + self.framenumaudio
-        self.reachedEnd = False
-        self.reset()
-
-    @pyqtSlot()
-    def reset(self):
-        
         self.V = np.transpose(self.referenceChromas)
         self.j = 0
         
@@ -78,80 +82,108 @@ class Aligner(QObject):
     @pyqtSlot()
     def align(self):
         logging.debug(f"MESAAAAAAAAAAAAA {self.j} {self.frameNumScore-1}")
-        while(self.j < self.frameNumScore-1):
-            logging.debug(f"J = {self.j}")
-            aa = time.time()
-            if self.needNewFrame == 1: # and not self.inputQueue.empty():
-                newChroma = self.chromaQueue.get()
-                # if self.bStart == 0:
-                #     if np.sum(newChroma) == 0:                           
-                #         return
-                #     else:
-                #         logging.debug('Audio detected!\n')
-                #         self.bStart = 1;                                         
-                self.U[:,:-1] = self.U[:,1:]
-                # print(f"{self.U[:,-1].shape} {newChroma.shape}")
-                self.U[:,-1] = newChroma[:,0]
-                # chromaBuffer(:,1:end-1) = chromaBuffer(:,2:end);
-                # chromaBuffer(:,end) = chroma;
+        while(self.j < self.frameNumScore-1 and self.resetActivated is False):
             
+            if self.recording is True:
+                aa = time.time()
+                logging.debug(f"J = {self.j}")
+                if self.needNewFrame == 1: # and not self.inputQueue.empty():
+                    try:
+                        newChroma = self.chromaQueue.get(timeout=1)
+                    except:
+                        if self.recording is True:
+                            raise
+                        else:
+                            continue
+                    # if self.bStart == 0:
+                    #     if np.sum(newChroma) == 0:                           
+                    #         return
+                    #     else:
+                    #         logging.debug('Audio detected!\n')
+                    #         self.bStart = 1;                                         
+                    self.U[:,:-1] = self.U[:,1:]
+                    # print(f"{self.U[:,-1].shape} {newChroma.shape}")
+                    self.U[:,-1] = newChroma[:,0]
+                    # chromaBuffer(:,1:end-1) = chromaBuffer(:,2:end);
+                    # chromaBuffer(:,end) = chroma;
+                
 
-            self.needNewFrame = 0
-            direction = self.getInc()
+                self.needNewFrame = 0
+                direction = self.getInc()
 
-            if direction in ["C","B"]:
-                self.t += 1
-                self.needNewFrame = 1
-                jj = np.max([0, self.j - self.c+1])
-                # ll = len(range(jj,self.j+1))
-                # assert ll == self.j+1-jj
-                for k in range(jj, self.j+1):
-                    self.d[k, self.t] = np.linalg.norm(self.V[:,k] - self.U[:,-1])**2
-                self.D[jj, self.t] = self.D[jj, self.t-1] + self.d[jj, self.t]
-                for k in range(jj+1, self.j+1):
-                    tmp1 = self.d[k, self.t] + self.D[k-1, self.t]
-                    tmp2 = self.w*self.d[k, self.t] + self.D[k-1, self.t-1]
-                    tmp3 = self.d[k, self.t] + self.D[k, self.t-1]
-                    self.D[k, self.t] = np.min([tmp1, tmp2, tmp3])
+                if direction in ["C","B"]:
+                    self.t += 1
+                    self.needNewFrame = 1
+                    jj = np.max([0, self.j - self.c+1])
+                    # ll = len(range(jj,self.j+1))
+                    # assert ll == self.j+1-jj
+                    for k in range(jj, self.j+1):
+                        self.d[k, self.t] = np.linalg.norm(self.V[:,k] - self.U[:,-1])**2
+                    self.D[jj, self.t] = self.D[jj, self.t-1] + self.d[jj, self.t]
+                    for k in range(jj+1, self.j+1):
+                        tmp1 = self.d[k, self.t] + self.D[k-1, self.t]
+                        tmp2 = self.w*self.d[k, self.t] + self.D[k-1, self.t-1]
+                        tmp3 = self.d[k, self.t] + self.D[k, self.t-1]
+                        self.D[k, self.t] = np.min([tmp1, tmp2, tmp3])
 
-            if direction in ["R","B"]:
-                self.j += 1
-                tt = np.max([0, self.t - self.c + 1])
-                # ll = len(range(tt,self.t+1))
-                # assert ll == self.t+1-tt
-                for k in range(tt, self.t+1):
-                    self.d[self.j, k] = np.linalg.norm(self.V[:,self.j] - self.U[:,k-self.t+self.c-1])**2
-                self.D[self.j, tt] = self.D[self.j-1, tt] + self.d[self.j, tt]
-                for k in range(tt+1, self.t+1):
-                    tmp1 = self.d[self.j, k] + self.D[self.j, k-1]
-                    tmp2 = self.w*self.d[self.j, k] + self.D[self.j-1, k-1]
-                    tmp3 = self.d[self.j, k] + self.D[self.j-1, k]
-                    self.D[self.j, k] = np.min([tmp1, tmp2, tmp3])
+                if direction in ["R","B"]:
+                    self.j += 1
+                    tt = np.max([0, self.t - self.c + 1])
+                    # ll = len(range(tt,self.t+1))
+                    # assert ll == self.t+1-tt
+                    for k in range(tt, self.t+1):
+                        self.d[self.j, k] = np.linalg.norm(self.V[:,self.j] - self.U[:,k-self.t+self.c-1])**2
+                    self.D[self.j, tt] = self.D[self.j-1, tt] + self.d[self.j, tt]
+                    for k in range(tt+1, self.t+1):
+                        tmp1 = self.d[self.j, k] + self.D[self.j, k-1]
+                        tmp2 = self.w*self.d[self.j, k] + self.D[self.j-1, k-1]
+                        tmp3 = self.d[self.j, k] + self.D[self.j-1, k]
+                        self.D[self.j, k] = np.min([tmp1, tmp2, tmp3])
 
-            
+                
 
 
-            if direction == self.previous:
-                self.runCount = self.runCount + 1
-            else:
-                self.runCount = 1
-            
-            if direction != "B":
-                self.previous = direction
+                if direction == self.previous:
+                    self.runCount = self.runCount + 1
+                else:
+                    self.runCount = 1
+                
+                if direction != "B":
+                    self.previous = direction
 
-            self.i += 1
-            self.pathOnline[self.i,:] = [self.x, self.y]
-            self.pathFront[self.i,:] = [self.t, self.j]
-            # print(self.j)
-            # self.signalToOSCclient.emit(self.i)
-            
-            self.signalToMainThread.emit([self.t, self.j])
-            self.durs.append(time.time() - aa)
-        # else:
-        logging.debug(f"END OF WHILE")
-        # if self.reachedEnd is False:
-        self.signalEnd.emit()
-        self.reachedEnd = True
+                self.i += 1
+                if self.i > len(self.pathOnline) - 1:
+                    logging.debug(f"Path Overflow")
+                    self.pathOverflow = True
+                    break
+                self.pathOnline[self.i,:] = [self.x, self.y]
+                self.pathFront[self.i,:] = [self.t, self.j]
+                # print(self.j)
+                # self.signalToOSCclient.emit(self.i)
+                
+                self.signalToMainThread.emit([self.t, self.j])
+                self.durs.append(time.time() - aa)
+            else:  
+                # print(f"{self.recording}")
+                time.sleep(0.1)
+                # pass
+
+        if self.j == self.frameNumScore-1:
+            self.reachedEnd = True
+            self.signalEnd.emit()
+            logging.debug(f"reached END - END OF WHILE")
+        if self.resetActivated is True:
+            logging.debug(f"End of While because RESET 1")
+            self.resetActivated = False
+            logging.debug(f"set resetActivated to False")
+        if self.pathOverflow is True:
+            self.pathOverflow = False
+            self.signalEnd.emit()
+            logging.debug(f"end of while - OVERFLOW")
+            # pass
+            # self.reachedEnd = True
+            # self.signalEnd.emit()
+        
             
            
             
