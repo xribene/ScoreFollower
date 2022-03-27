@@ -16,26 +16,6 @@ class ToolBar(QToolBar):
         self.playPause.setShortcutContext(Qt.ApplicationShortcut)
         self.playPause.setIcon(QIcon(resource_path("resources/svg/rec.svg")))
 
-        # self.reset = QAction("Reset Memory (Ctrl+R)",self)
-        # self.reset.setShortcut("Ctrl+R")
-        # self.reset.setShortcutContext(Qt.ApplicationShortcut)
-        # self.reset.setIcon(QIcon(self."Images/svg/reset.svg")))
-
-        # self.condition = QAction("Condition (Ctrl+C)",self)
-        # self.condition.setShortcut("Ctrl+C")
-        # self.condition.setShortcutContext(Qt.ApplicationShortcut)
-        # self.condition.setIcon(QIcon(self."Images/svg/upload.svg")))
-
-        # self.preferences = QAction("Preferences (Ctrl+P)",self)
-        # self.preferences.setShortcut("Ctrl+P")
-        # self.preferences.setShortcutContext(Qt.ApplicationShortcut)
-        # self.preferences.setIcon(QIcon(resource_path("extraResources/settings.svg")))
-
-        # self.save = QAction("Save (Ctrl+S)",self)
-        # self.save.setShortcut("Ctrl+S")
-        # self.save.setShortcutContext(Qt.ApplicationShortcut)
-        # self.save.setIcon(QIcon(resource_path("extraResources/save.svg")))
-
         self.reset = QAction("Reset (Ctrl+R)",self)
         self.reset.setShortcut("Ctrl+R")
         self.reset.setShortcutContext(Qt.ApplicationShortcut)
