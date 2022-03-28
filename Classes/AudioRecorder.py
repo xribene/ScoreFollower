@@ -32,6 +32,7 @@ class AudioRecorder(QObject):
         self.frames = []
         self.stream = None
         self.file = None
+        self.emmiting = True
 
         logging.warning("audio recorder init done")
 
@@ -73,6 +74,14 @@ class AudioRecorder(QObject):
             self.startStream()
         else:
             self.stopStream()
+    
+    def startStopEmitting(self):
+        self.emitting = not self.emitting
+
+    def startEmitting(self):
+        self.emitting = True
+    def stopEmitting(self):
+        self.emitting = False
 
     def startStream(self):
         if self.stopped:
@@ -114,7 +123,8 @@ class AudioRecorder(QObject):
 
     def  _micCallback(self, in_data, frame_count, time_info, status):
         data = np.frombuffer(in_data, "int16")
-        self.signalToChromatizer.emit(data)
+        if self.emmiting:
+            self.signalToChromatizer.emit(data)
         # self.queue.push(data)
         self.frames.append(in_data)
         return (data, pyaudio.paContinue)
@@ -129,7 +139,7 @@ class AudioRecorder(QObject):
         mono = data_per_channel[0]
         self.signalToChromatizer.emit(mono)
         # self.queue.push(mono)
-        self.i += 1
+        # self.i += 1
         # print(self.i)
         self.frames.append(data)
         return (data, pyaudio.paContinue)

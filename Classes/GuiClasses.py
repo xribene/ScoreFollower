@@ -20,7 +20,7 @@ class QComboBoxBlocking(QComboBox):
         self.blockSignals(False)
 
 class QLabBox(QGroupBox):
-    def __init__(self, appctxt, parent):
+    def __init__(self, config, parent):
         super(QLabBox, self).__init__()
         # Set the logger
         # logTextBox = QTextEditLogger(self)
@@ -35,15 +35,11 @@ class QLabBox(QGroupBox):
         
         self.setObjectName("QLabBox")
         self.setTitle("&QLab - Disconnected")
-        self.setStyleSheet('#QLabBox:title {color: rgb(0,0,0);background-color: rgb(200, 0, 0);}')
+        self.setStyleSheet('#QLabBox:title {color: #001219;background-color: #ae2012;}')
         self.setMinimumSize(1000,300)
-        self.appctxt = appctxt
+        self.config = config
         self.layout = QHBoxLayout(self)
 
-
-        # self.status = QStatusBar(self)
-        # self.status.showMessage("Disconnected")
-        # self.status.setStyleSheet("background-color: rgb(0, 255, 0);")
 
         self.connectButton = QPushButton("refresh")
         
@@ -93,19 +89,19 @@ class QLabBox(QGroupBox):
     def changeTitle(self, status):
         if status is True:
             self.setTitle("&QLab - Connected")
-            self.setStyleSheet('#QLabBox:title {color: rgb(0,0,0);background-color: rgb(0, 200, 0);}')
+            self.setStyleSheet('#QLabBox:title {color: #001219;background-color: #38b000;}')
         else:
             self.setTitle("&QLab - Disconnected")
-            self.setStyleSheet('#QLabBox:title {color: rgb(0,0,0);background-color: rgb(200, 0, 0);}')
+            self.setStyleSheet('#QLabBox:title {color: #001219;background-color: #ae2012;}')
     def setGreenTitle(self, workspaceID):
         self.setTitle(f"&QLab - Connected - {workspaceID}")
-        self.setStyleSheet('#QLabBox:title {color: rgb(0,0,0);background-color: rgb(0, 200, 0);}')
+        self.setStyleSheet('#QLabBox:title {color: #001219;background-color: #38b000;}')
     def setRedTitle(self):
         self.setTitle("&QLab - Disconnected")
-        self.setStyleSheet('#QLabBox:title {color: rgb(0,0,0);background-color: rgb(200, 0, 0);}')
+        self.setStyleSheet('#QLabBox:title {color: #001219;background-color: #ae2012;}')
 
 class ScoreBox(QGroupBox):
-    def __init__(self, appctxt, parent):
+    def __init__(self, config, parent):
         super(ScoreBox, self).__init__()
         # Set the logger
         # logTextBox = QTextEditLogger(self)
@@ -114,37 +110,26 @@ class ScoreBox(QGroupBox):
         # logging.getLogger().setLevel(logging.DEBUG)
 
         # initializations
-        self.setTitle("&ScoreBox")
+        self.setTitle("&Score")
         self.setFixedSize(300,300)
-        self.appctxt = appctxt
+        self.config = config
         self.layout = QGridLayout(self)
-        self.barLabel = QLabel("Bar")
-        self.cueLabel = QLabel("Cue")
-        self.barLcd = QLCDNumber()
-        self.barLcd = QLCDNumber(self)
-        self.barLcd.display(-1)
-        self.barLcd.setDigitCount(3)
-        # self.barLcd.setFixedHeight(35)
-        # self.barLcd.setFixedWidth(35)
-        self.cueLcd = QLCDNumber()
-        self.cueLcd = QLCDNumber(self)
-        self.cueLcd.display(-1)
-        self.cueLcd.setDigitCount(3)
-        self.barLabel.setBuddy(self.barLcd)
-        self.cueLabel.setBuddy(self.cueLcd)
+        
 
         self.dropdownPiece = QComboBoxBlocking(self)
-        self.dropdownAudioSource = QComboBoxBlocking(self)
+        self.dropdownSection = QComboBoxBlocking(self)
+        # self.dropdownAudioSource = QComboBoxBlocking(self)
         # self.dropdown.addItem("Jetee")
 
         self.layout.addWidget(self.dropdownPiece, 0, 0, 1, 1,Qt.AlignCenter)
-        self.layout.addWidget(self.dropdownAudioSource, 1, 0, 1, 1,Qt.AlignCenter)
+        self.layout.addWidget(self.dropdownSection, 1, 0, 1, 1,Qt.AlignCenter)
         # self.layout.addWidget(self.bar)
 
-        self.layout.addWidget(self.barLabel, 2, 0, 1, 1, Qt.AlignCenter)
-        self.layout.addWidget(self.barLcd, 2, 1, 1, 1, Qt.AlignCenter)
-        self.layout.addWidget(self.cueLabel, 3, 0, 1, 1, Qt.AlignCenter)
-        self.layout.addWidget(self.cueLcd, 3, 1, 1, 1, Qt.AlignCenter)
+        # self.layout.addWidget(self.barLabel, 2, 0, 1, 1, Qt.AlignCenter)
+        # self.layout.addWidget(self.barDisp, 2, 1, 1, 1, Qt.AlignCenter)
+        # self.layout.addWidget(self.cueLabel, 3, 0, 1, 1, Qt.AlignCenter)
+        # self.layout.addWidget(self.cueDisp, 3, 1, 1, 1, Qt.AlignCenter)
+
         # layout.setColumnMinimumWidth(0, 50) 
         # self.layout.setColumnMinimumWidth(1, 30)
         # layout.setRowMinimumHeight(0, 20) 
@@ -153,8 +138,61 @@ class ScoreBox(QGroupBox):
         #layout.setRowStretch(5, 1)
         self.setLayout(self.layout)
 
+class AudioBox(QGroupBox):
+    def __init__(self, config, parent):
+        super(AudioBox, self).__init__()
+        # Set the logger
+        # logTextBox = QTextEditLogger(self)
+        # logTextBox.setFormatter(logging.Formatter('%(asctime)s.%(msecs)05d %(levelname)s %(module)s - %(funcName)s -%(threadName)s -%(lineno)s: %(message)s'))
+        # logging.getLogger().addHandler(logTextBox)
+        # logging.getLogger().setLevel(logging.DEBUG)
+
+        # initializations
+        self.setTitle("&Audio Settings")
+        # self.setFixedSize(300,300)
+        self.config = config
+        self.layout = QGridLayout(self)
+        # self.barLabel = QLabel("Bar")
+        # self.cueLabel = QLabel("Cue")
+        # self.barDisp = QLCDNumber()
+        # self.barDisp = QLCDNumber(self)
+        # self.barDisp.display(-1)
+        # self.barDisp.setDigitCount(3)
+        # self.cueDisp = QLCDNumber()
+        # self.cueDisp = QLCDNumber(self)
+        # self.cueDisp.display(-1)
+        # self.cueDisp.setDigitCount(3)
+        # self.barLabel.setBuddy(self.barDisp)
+        # self.cueLabel.setBuddy(self.cueDisp)
+
+        # self.dropdownPiece = QComboBoxBlocking(self)
+        self.dropdownAudioSource = QComboBoxBlocking(self)
+        self.rmsDisp = QLineEdit(self)
+        self.rmsDisp.setEnabled(False)
+        self.rmsDisp.setObjectName("rmsDisp")
+
+        self.rmsThrDisp = QLineEdit(self)
+        self.rmsThrDisp.setEnabled(True)
+        self.rmsThrDisp.setObjectName("rmsThrDisp")
+        rmsValidator = QtGui.QDoubleValidator()
+        rmsValidator.setNotation(0)
+        rmsValidator.setBottom(0.0)
+        rmsValidator.setTop(1000.0)
+        rmsValidator.setDecimals(2)
+        self.rmsThrDisp.setValidator(rmsValidator)
+        self.rmsThrDisp.setText(str(self.config.defaultRmsThr))
+
+        # self.layout.addWidget(self.dropdownPiece, 0, 0, 1, 1,Qt.AlignCenter)
+        self.layout.addWidget(self.dropdownAudioSource, 0, 0, 1, 2)#, Qt.AlignCenter)
+        self.layout.addWidget(self.rmsDisp, 0, 2, 1, 1)#, Qt.AlignCenter)
+        self.layout.addWidget(self.rmsThrDisp, 0, 3, 1, 1)#, Qt.AlignCenter)
+        # self.layout.addWidget(self.barLabel, 2, 0, 1, 1, Qt.AlignCenter)
+        # self.layout.addWidget(self.barDisp, 2, 1, 1, 1, Qt.AlignCenter)
+        # self.layout.addWidget(self.cueLabel, 3, 0, 1, 1, Qt.AlignCenter)
+        # self.layout.addWidget(self.cueDisp, 3, 1, 1, 1, Qt.AlignCenter)
+        self.setLayout(self.layout)
 class AlignBox(QGroupBox):
-    def __init__(self, appctxt, parent):
+    def __init__(self, config, parent):
         super(AlignBox, self).__init__()
         # Set the logger
         # logTextBox = QTextEditLogger(self)
@@ -164,30 +202,65 @@ class AlignBox(QGroupBox):
 
         # initializations
         self.setTitle("&Alignment")
-        self.appctxt = appctxt
+        self.config = config
         self.layout = QGridLayout(self)
 
         self.win = pg.GraphicsWindow(size=(500,500))
+        self.win.setBackground('#001219')
+        # self.win.getAxis('left').setTextPen('b')
+
+
         self.setMinimumSize(300,300)
         self.plot = self.win.addPlot(title = "Minimum Cost Path",
-                                  labels = {
-                                  'bottom':"Audio Frames",
-                                  'left':"Score Frames"},
-                                   backround = "white")
-        # self.curve = self.p.plot(pen="r", background="w")
-        # self.plot = pg.plot()
+                                #   labels = {
+                                #   'bottom':"Audio Frames",
+                                #   'left':"Score Frames"},
+                                   )
         self.scatter = pg.ScatterPlotItem(
-            size=3, brush=pg.mkBrush(255, 255, 255, 120))
-        
+            size=3, brush=pg.mkBrush("#94d2bd"))
         self.plot.addItem(self.scatter)
+
+        label_style = {"color": "#bb3e03", "font-size": "14pt"}
+        self.plot.setLabel("bottom", "Audio Frames", **label_style)
+        self.plot.setLabel("left", "Score Frames", **label_style)
+        # self.plot.getAxis("left").setLabel(**label_style)
         # self.plot.setXRange(0, 2000, padding=0)
         # self.plot.setYRange(0, 2000, padding=0)
         
 
         # layout
+        self.barLabel = QLabel("Bar")
+        self.barLabel.setObjectName('bar')
+        self.cueLabel = QLabel("Cue")
+        self.cueLabel.setObjectName('cue')
+
+        self.barVal = QtGui.QIntValidator()
+        self.barVal.setBottom(0)
+        # self.barVal.setTop(1000.0)
+        self.barDisp = QLineEdit(self)
+        self.barDisp.setEnabled(True)
+        self.barDisp.setText(str(0))
+        self.barDisp.setObjectName("barDisp")
+        self.barDisp.setValidator(self.barVal)
+
+        self.cueVal = QtGui.QIntValidator()
+        self.cueVal.setBottom(0)
+        # self.curVal.setT
+        self.cueDisp = QLineEdit(self)
+        self.cueDisp.setText(str(0))
+        self.cueDisp.setObjectName("cueDisp")
+        self.cueDisp.setValidator(self.cueVal)
+
+        self.barLabel.setBuddy(self.barDisp)
+        self.cueLabel.setBuddy(self.cueDisp)
         
         
-        self.layout.addWidget(self.win, 0, 0, 1, 1, Qt.AlignCenter)
+
+        self.layout.addWidget(self.barLabel, 0, 0, 1, 1, Qt.AlignRight)
+        self.layout.addWidget(self.barDisp, 0, 1, 1, 1, Qt.AlignLeft)
+        self.layout.addWidget(self.cueLabel, 0, 2, 1, 1, Qt.AlignRight)
+        self.layout.addWidget(self.cueDisp, 0, 3, 1, 1, Qt.AlignLeft)
+        self.layout.addWidget(self.win, 1, 0, 4, 4)#, Qt.AlignCenter)
         # layout.setColumnMinimumWidth(0, 50) 
         # self.layout.setColumnMinimumWidth(1, 30)
         # layout.setRowMinimumHeight(0, 20) 
@@ -209,12 +282,12 @@ class AlignBox(QGroupBox):
 
 class QLabInterface(QObject):
     # signalToAligner = pyqtSignal()
-    def __init__(self, appctxt, oscClient, oscListener, qLabGroup):
+    def __init__(self, config, oscClient, oscListener, qLabGroup):
         super(QLabInterface, self).__init__()
 
         # initializations
         self.setObjectName("QLabInterface")
-        self.appctxt = appctxt
+        self.config = config
         self.oscClient = oscClient
         self.oscListener = oscListener
         self.qLabGroup = qLabGroup

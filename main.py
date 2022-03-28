@@ -69,7 +69,7 @@ class QTextEditLogger(logging.Handler):
 
 class ScoreFollower(QWidget):
     signalToAligner = pyqtSignal()
-    def __init__(self, appctxt):
+    def __init__(self):
         super(ScoreFollower, self).__init__()
         self.setupFinished = False
         # Set the logger
@@ -81,19 +81,22 @@ class ScoreFollower(QWidget):
         # initializations
         self.config = Params(resource_path("resources/config.json"))
         self.setObjectName("ScoreFollower")
-        self.appctxt = appctxt
+        self.rms = 0.0
+        self.a = 0.25
 
         # gui elements
         self.menuBar = MenuBar(self)
-        self.toolbar = ToolBar(appctxt = appctxt, parent = self, config = self.config)
-        self.scoreGroup = ScoreBox(self.appctxt, self)
-        self.alignGroup = AlignBox(self.appctxt, self)
-        self.qLabGroup = QLabBox(self.appctxt, self)        
+        self.toolbar = ToolBar(parent = self, config = self.config)
+        self.scoreGroup = ScoreBox(self.config, self)
+        self.audioGroup = AudioBox(self.config, self)
+        self.alignGroup = AlignBox(self.config, self)
+        self.qLabGroup = QLabBox(self.config, self)        
         mainLayout = QGridLayout(self) 
         # mainLayout.addWidget(logTextBox.widget)
         mainLayout.setMenuBar(self.menuBar)
-        mainLayout.addWidget(self.toolbar, 0, 0, 10, 100, Qt.AlignCenter|Qt.AlignTop)#, 0,0,3,1, Qt.AlignLeft|Qt.AlignTop)
-        mainLayout.addWidget(self.scoreGroup, 10, 0, 50, 50, Qt.AlignLeft|Qt.AlignTop)
+        mainLayout.addWidget(self.toolbar, 0, 0, 10, 100, Qt.AlignCenter|Qt.AlignTop)
+        mainLayout.addWidget(self.scoreGroup, 10, 0, 25, 50, Qt.AlignLeft|Qt.AlignTop)
+        mainLayout.addWidget(self.audioGroup, 35, 0, 25, 50, Qt.AlignLeft|Qt.AlignTop)
         mainLayout.addWidget(self.alignGroup, 10, 50, 50, 50, Qt.AlignLeft|Qt.AlignTop)
         # verticalSpacer = QSpacerItem(100, 40, QSizePolicy.Minimum, QSizePolicy.Expanding) 
         # mainLayout.addItem(verticalSpacer, 60, 0, 40, 100, Qt.AlignCenter)
@@ -114,12 +117,12 @@ class ScoreFollower(QWidget):
         testAudios =  [f.parts[-1] for f in Path(resource_path(f"resources/Pieces/{self.pieceName}/testAudio")).iterdir() if f.is_file() and f.parts[-1]!=".DS_Store"]
         # self.audioSourceName = "microphone" # testAudios[0]
 
-        # self.scoreGroup.dropdownAudioSource.blockSignals(True)
-        # self.scoreGroup.dropdownAudioSource.clear()
-        # self.scoreGroup.dropdownAudioSource.addItems(testAudios)
-        # self.scoreGroup.dropdownAudioSource.addItem("microphone")
-        # self.scoreGroup.dropdownAudioSource.setCurrentText(self.audioSourceName)
-        # self.scoreGroup.dropdownAudioSource.blockSignals(False)
+        # self.audioGroup.dropdownAudioSource.blockSignals(True)
+        # self.audioGroup.dropdownAudioSource.clear()
+        # self.audioGroup.dropdownAudioSource.addItems(testAudios)
+        # self.audioGroup.dropdownAudioSource.addItem("microphone")
+        # self.audioGroup.dropdownAudioSource.setCurrentText(self.audioSourceName)
+        # self.audioGroup.dropdownAudioSource.blockSignals(False)
         self.updateAudioSourceMenu()
 
         self.scoreGroup.dropdownPiece.blockSignals(True)
@@ -128,14 +131,14 @@ class ScoreFollower(QWidget):
         self.scoreGroup.dropdownPiece.blockSignals(False)
 
         self.scoreGroup.dropdownPiece.currentIndexChanged.connect(self.pieceSelectionChange)
-        self.scoreGroup.dropdownAudioSource.currentIndexChanged.connect(self.audioSourceSelectionChange)
+        self.audioGroup.dropdownAudioSource.currentIndexChanged.connect(self.audioSourceSelectionChange)
 
         # self.pieceName = "Jetee"  # scoreNames[0]
         self.setNewPiece()
         self.setNewAudioSource()
         # self.updateAudioSourceMenu()
         # self.audioSourceName = "microphone" # testAudios[0]
-        # self.scoreGroup.dropdownAudioSource.setCurrentText(self.audioSourceName)
+        # self.audioGroup.dropdownAudioSource.setCurrentText(self.audioSourceName)
         
         ## this had to go after creating audioRecorder       
         # self.setNewAudioSource()
@@ -189,24 +192,24 @@ class ScoreFollower(QWidget):
         # testAudios2 =  [f for f in Path(f"resources/Pieces/{self.pieceName}/testAudio").iterdir()]
 
         # logging.debug(f"available testAudios {testAudios2}")
-        self.scoreGroup.dropdownAudioSource.blockSignals(True)
-        self.scoreGroup.dropdownAudioSource.clear()
-        self.scoreGroup.dropdownAudioSource.addItems(testAudios)
+        self.audioGroup.dropdownAudioSource.blockSignals(True)
+        self.audioGroup.dropdownAudioSource.clear()
+        self.audioGroup.dropdownAudioSource.addItems(testAudios)
         self.audioSourceName = "microphone" # testAudios[0]
-        self.scoreGroup.dropdownAudioSource.addItem(self.audioSourceName)
-        self.scoreGroup.dropdownAudioSource.setCurrentText(self.audioSourceName)
-        self.scoreGroup.dropdownAudioSource.blockSignals(False)
+        self.audioGroup.dropdownAudioSource.addItem(self.audioSourceName)
+        self.audioGroup.dropdownAudioSource.setCurrentText(self.audioSourceName)
+        self.audioGroup.dropdownAudioSource.blockSignals(False)
         
         # self.audioSourceName = "microphone" # testAudios[0]
-        # self.scoreGroup.dropdownAudioSource.setCurrentText(self.audioSourceName)
+        # self.audioGroup.dropdownAudioSource.setCurrentText(self.audioSourceName)
 
     def audioSourceSelectionChange(self,):
         if self.setupFinished:
             self.reset()
         print("in audioSourceSelectionChange")
-        if self.audioSourceName != self.scoreGroup.dropdownAudioSource.currentText():
+        if self.audioSourceName != self.audioGroup.dropdownAudioSource.currentText():
             print("in audioSourceSelectionChange new name")
-            self.audioSourceName = self.scoreGroup.dropdownAudioSource.currentText()
+            self.audioSourceName = self.audioGroup.dropdownAudioSource.currentText()
             print(f"in audioSourceSelectionChange new name is {self.audioSourceName}")
             self.setNewAudioSource()
 
@@ -229,6 +232,26 @@ class ScoreFollower(QWidget):
         #                                 hop_length = self.config.hop_length)
         print(f"in setNewPiece")
         self.cuesDict = np.load(resource_path(f"resources/Pieces/{self.pieceName}/cuesDict_{self.pieceName}.npy"), allow_pickle=True).item()
+        frames = list(self.cuesDict.keys())
+        frames.sort()
+        # barsList = []
+        # cuesList = []
+        self.bar2frameDict = {}
+        self.cue2frameDict = {}
+        for frame in frames:
+            events = self.cuesDict[frame]
+            # barsList.extend([int(event['ind']) for event in events if event['type']=='bar'])
+            # cuesList.extend([int(event['name']) for event in events if event['type']=='cue'])
+            for event in events:
+                if event['type'] == 'bar':
+                    # barsList.append(int(event['ind']))
+                    self.bar2frameDict[int(event['ind'])] = frame
+                elif event['type'] == 'cue':
+                    # cuesList.append(int(event['name']))
+                    self.cue2frameDict[int(event['name'])] = frame
+                    
+        # logging.debug(f'cues')
+        
         # get the reference chroma vectors
         # if self.config.mode == "score" :
         #     referenceFile = resource_path(f"resources/Pieces/{self.pieceName}/{self.pieceName}.mid")
@@ -295,6 +318,7 @@ class ScoreFollower(QWidget):
                                     windowType = self.config.window_type,
                                     magPower = self.config.magPower,
                                     chromafb = None,
+                                    defaultRmsThr= self.config.defaultRmsThr
                         )
         self.chromatizer.moveToThread(self.chromaThread)
 
@@ -315,7 +339,7 @@ class ScoreFollower(QWidget):
         #                         w = self.config.w_diag)
         # self.aligner.moveToThread(self.alignerThread)
 
-        self.qLabInterface = QLabInterface(self.appctxt, self.oscClient, self.oscClient, self.qLabGroup)
+        self.qLabInterface = QLabInterface(self.config, self.oscClient, self.oscClient, self.qLabGroup)
 
         self.audioThread.start()
         self.chromaThread.start()
@@ -352,8 +376,8 @@ class ScoreFollower(QWidget):
         if self.audioRecorder.stopped is False:
             self.startStopRecording()
             QThread.msleep(1000)
-        self.scoreGroup.cueLcd.display(-1)
-        self.scoreGroup.barLcd.display(-1)
+        self.alignGroup.cueDisp.setText(str(0))
+        self.alignGroup.barDisp.setText(str(0))
         self.audioRecorder.reset()
         self.aligner.reset()
         self.alignGroup.reset()
@@ -371,6 +395,7 @@ class ScoreFollower(QWidget):
 
     def signalsandSlots(self):
         self.audioRecorder.signalToChromatizer.connect(self.chromatizer.calculate)
+        self.audioRecorder.signalToChromatizer.connect(self.rmsCalculator)
         # self.audioRecorder.signalEnd.connect(self.closeEvent)
         self.aligner.signalToMainThread.connect(self.updateAlignment)
         # self.aligner.signalToOSCclient.connect(self.oscClient.emit)
@@ -392,7 +417,33 @@ class ScoreFollower(QWidget):
         # QLabBox signals
         self.qLabGroup.clientManualMessageText.returnPressed.connect(self.qLabInterface.sentManualOscMessage)
         self.qLabGroup.connectButton.clicked.connect(self.qLabInterface.checkConnection)
+
+        # User sets starting bar signal
+        self.alignGroup.barDisp.editingFinished.connect(self.processNewBarInput)
+        self.alignGroup.cueDisp.editingFinished.connect(self.processNewCueInput)
+        self.audioGroup.rmsThrDisp.editingFinished.connect(self.updateRmsThr)
     
+    @pyqtSlot()
+    def updateRmsThr(self):
+        self.chromatizer.rmsThr = float(self.audioGroup.rmsThrDisp.text())
+        logging.debug(f'User set RMS THR to {float(self.audioGroup.rmsThrDisp.text())}')
+        
+    @pyqtSlot()
+    def processNewBarInput(self):
+        logging.debug(f'User set bar {self.alignGroup.barDisp.text()}')
+    @pyqtSlot()
+    def processNewCueInput(self):
+        logging.debug(f'User set cue {self.alignGroup.cueDisp.text()}')   
+    @pyqtSlot(object)
+    def rmsCalculator(self, audioFrame):
+        y = audioFrame.astype('float32') / 32768.0
+        power = np.mean(np.abs(y) ** 2, axis=0, keepdims=True)
+        new_rms = np.sqrt(power)
+        self.rms = self.a * new_rms[0] + (1 - self.a) * self.rms
+        self.audioGroup.rmsDisp.setText(f"{self.rms*10:.2f}")
+        # logging.debug(f'rms value is {self.rms*10}')
+        
+
     @pyqtSlot()
     def alignerStoppedCallback(self):
         print(f"IN SIGNAL END FROM ALIGNER ABOUT TO STOP RECORDING")
@@ -431,10 +482,10 @@ class ScoreFollower(QWidget):
                 for event in events:
                     if event['type'] == 'cue':
                         self.qLabInterface.sendCueTrigger(event)
-                        self.scoreGroup.cueLcd.display(int(event["name"]))
+                        self.alignGroup.cueDisp.setText(str(event["name"]))
                     elif event['type'] == 'bar':
                         self.qLabInterface.sendBarTrigger(event)
-                        self.scoreGroup.barLcd.display(event["ind"])
+                        self.alignGroup.barDisp.setText(str(event["ind"]))
         self.lastJ = j
         # spot = [{'pos': np.array(args), 'data': 1}]
         # self.alignGroup.scatter.addPoints(spot)
@@ -446,10 +497,11 @@ if __name__ == "__main__":
     # Uncomment below for terminal log messages
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s - %(threadName)s - %(lineno)s: %(message)s', datefmt= '%H:%M:%S')
 
-    appctxt = None
-    # appctxt = ApplicationContext()
+    styleSheet = resource_path("resources/styleSheet.css")
     app = QApplication(sys.argv)
-    app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
-    mainWindow = ScoreFollower(appctxt)
+    with open(styleSheet,"r") as fh:
+        app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5() + fh.read())
+    # app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
+    mainWindow = ScoreFollower()
     exit_code = app.exec_()
     sys.exit(exit_code)

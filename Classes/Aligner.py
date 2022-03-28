@@ -140,16 +140,22 @@ class Aligner(QObject):
                         tmp3 = self.d[self.j, k] + self.D[self.j-1, k]
                         self.D[self.j, k] = np.min([tmp1, tmp2, tmp3])
 
-                
-
-
-                if direction == self.previous:
-                    self.runCount = self.runCount + 1
-                else:
+                if direction == 'B':
                     self.runCount = 1
+                else:
+                    if direction == self.previous:
+                        self.runCount += 1
+                    else:
+                        self.runCount = 1
+                self.previous = direction
+
+                # if direction == self.previous:
+                #     self.runCount = self.runCount + 1
+                # else:
+                #     self.runCount = 1
                 
-                if direction != "B":
-                    self.previous = direction
+                # if direction != "B":
+                #     self.previous = direction
 
                 self.i += 1
                 if self.i > len(self.pathOnline) - 1:
@@ -186,7 +192,11 @@ class Aligner(QObject):
         
             
            
-            
+    def setStartingScoreFrame(self, frame):
+        self.j = frame    
+        # if isStopped tote to self.j einai safe na ginei apo 0 ws maxScoreFrame
+        # if running tote to self.j einai safe na paei pisw. 
+        # i.e if self.j = 300 and frame 305  
     ##get direction ##################################
     ##################################################
     def getInc(self):
@@ -216,7 +226,8 @@ class Aligner(QObject):
         if self.runCount > self.maxRunCount:
             if self.previous == "R":
                 return "C"
-            else:
+            # else: # TODO how about elif self.previous == 'C'
+            elif self.previous == "C":
                 return "R"
 
         if self.x < self.t:

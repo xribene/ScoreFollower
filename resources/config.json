@@ -20,6 +20,8 @@
     "portIn" : 53001,
 
     "plotPeriod" : 25,
-    "audioInput" : "recordedJetee.wav"
+    "audioInput" : "recordedJetee.wav",
+
+    "defaultRmsThr" : 0.0
 
 }

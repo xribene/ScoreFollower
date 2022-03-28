@@ -5,9 +5,8 @@ from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import (QIcon)
 from offline.utils_offline import resource_path
 class ToolBar(QToolBar):
-    def __init__(self, appctxt, config, parent):
+    def __init__(self, config, parent):
         super(ToolBar,self).__init__(parent)
-        self.appctxt = appctxt
         self.config = config
         self.setIconSize(QSize(30,30))
 

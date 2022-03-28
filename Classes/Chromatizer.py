@@ -7,14 +7,13 @@ import librosa
 from scipy.fft import rfft
 
 class Chromatizer(QObject):
-    signalToOnlineDTW = pyqtSignal(object)
     def __init__(self, chromaBuffer, rate = 44100, 
                         chromaType = 'stft', hop_length = 1024, 
                         window_length = 2048,
                         n_fft = 8192, n_chroma = 12,
                         norm=2, normAudio = False, 
                         windowType='hann',
-                        chromafb = None, magPower = 1):
+                        chromafb = None, magPower = 1, defaultRmsThr = 0.0):
         QObject.__init__(self)
         self.chromaBuffer = chromaBuffer
         self.rate = rate
@@ -29,7 +28,8 @@ class Chromatizer(QObject):
         self.buffer = np.zeros(window_length - hop_length).astype(np.float32)
         self.chromasList = []
         self.lastChroma = np.zeros((n_chroma,1))
-        
+        self.zeroChroma = np.zeros((n_chroma,1))
+        self.rmsThr = defaultRmsThr
         self.fft_window = librosa.filters.get_window(windowType, window_length, fftbins=True)
         # np.save("fftWindow.npy", self.fft_window)
         self.n_chroma = n_chroma
@@ -57,7 +57,7 @@ class Chromatizer(QObject):
             # logging.debug(f"{self.chromaBuffer.qsize()}")
             #
             # TODO see what to do with the threshold here
-            if rms > -0.01:
+            if rms >= self.rmsThr:
                 chunk_win = self.fft_window * y_conc
                 real_fft = rfft(chunk_win, n = self.n_fft)
                 fft_mag = np.abs(real_fft)**self.magPower
@@ -66,7 +66,7 @@ class Chromatizer(QObject):
                 # logging.debug(f"norm Chroma shape is {norm_chroma.shape}")
                 # chromaFrames.append(norm_chroma)
             else:
-                norm_chroma = self.lastChroma
+                norm_chroma = self.zeroChroma
             # logging.debug(f"{chroma[:,0].astype(np.int)}")
             self.chromasList.append(norm_chroma)
             self.chromaBuffer.put_nowait(norm_chroma)
