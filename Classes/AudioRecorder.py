@@ -16,7 +16,7 @@ class AudioRecorder(QObject):
     signalToChromatizer = pyqtSignal(object)
     # signalEnd = pyqtSignal()
     def __init__(self, queue, rate = 22050, chunk = 4096,
-                       input_device_index = 0):
+                       input_device_index = 15, output_device_index = 15):
         QObject.__init__(self)
         self.rate = rate
         self.i=0
@@ -26,6 +26,7 @@ class AudioRecorder(QObject):
         # self.deque = deque(rate*1)
         self.p = pyaudio.PyAudio()
         self.input_device_index = input_device_index
+        self.output_device_index = output_device_index
 
         # self.createStream(audioSource)
         self.stopped = True
@@ -49,6 +50,7 @@ class AudioRecorder(QObject):
                                     input = True,
                                     output = True,
                                     frames_per_buffer = self.chunk,
+                                    output_device_index=self.output_device_index,
                                     stream_callback = self._wavCallback)
             logging.debug(f"CHANNELS ARE {self.file.getnchannels()}")
         else:
@@ -59,7 +61,7 @@ class AudioRecorder(QObject):
                                     rate = self.rate,
                                     input = True,
                                     # output = True,
-                                    # input_device_index = self.input_device_index,
+                                    input_device_index = self.input_device_index,
                                     frames_per_buffer = self.chunk,
                                     stream_callback = self._micCallback)
             

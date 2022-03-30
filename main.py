@@ -249,7 +249,7 @@ class ScoreFollower(QWidget):
                 elif event['type'] == 'cue':
                     # cuesList.append(int(event['name']))
                     self.cue2frameDict[int(event['name'])] = frame
-                    
+
         # logging.debug(f'cues')
         
         # get the reference chroma vectors
@@ -419,21 +419,41 @@ class ScoreFollower(QWidget):
         self.qLabGroup.connectButton.clicked.connect(self.qLabInterface.checkConnection)
 
         # User sets starting bar signal
-        self.alignGroup.barDisp.editingFinished.connect(self.processNewBarInput)
-        self.alignGroup.cueDisp.editingFinished.connect(self.processNewCueInput)
-        self.audioGroup.rmsThrDisp.editingFinished.connect(self.updateRmsThr)
+        self.alignGroup.barDisp.returnPressed.connect(self.processNewBarInput)
+        self.alignGroup.cueDisp.returnPressed.connect(self.processNewCueInput)
+        self.audioGroup.rmsThrDisp.returnPressed.connect(self.updateRmsThr)
     
     @pyqtSlot()
     def updateRmsThr(self):
         self.chromatizer.rmsThr = float(self.audioGroup.rmsThrDisp.text())
         logging.debug(f'User set RMS THR to {float(self.audioGroup.rmsThrDisp.text())}')
-        
     @pyqtSlot()
     def processNewBarInput(self):
         logging.debug(f'User set bar {self.alignGroup.barDisp.text()}')
+        # self.aligner.setStartingScoreFrame(self.bar2frameDict[int(self.alignGroup.barDisp.text())])
+        frame = self.bar2frameDict[int(self.alignGroup.barDisp.text())]
+        # if frame < self.aligner.j:
+        #     # check if self.aligner.j - frame > self.c
+        #     self.aligner.j_todo = frame
+        #     self.aligner.j_todo_flag = True
+        # else:
+        #     self.aligner.j = frame
+        #     self.aligner.d[frame,0] = 0
+        #     self.aligner.D[frame,0] = 0
+        #     self.aligner.startFrameJ = frame
+        #     logging.debug(f'not running --> set self.aligner.j={frame}')
+        self.aligner.j_todo = frame
+        self.aligner.j_todo_flag = True
+        # else:
+        #     self.aligner.j = frame
+            # self.aligner.d[frame,0] = 0
+            # self.aligner.D[frame,0] = 0
+            # self.aligner.startFrameJ = frame
+            # logging.debug(f'not running --> set self.aligner.j={frame}')
     @pyqtSlot()
     def processNewCueInput(self):
-        logging.debug(f'User set cue {self.alignGroup.cueDisp.text()}')   
+        logging.debug(f'User set cue {self.alignGroup.cueDisp.text()}')  
+        self.aligner.setStartingScoreFrame(self.cue2frameDict[int(self.alignGroup.cueDisp.text())]) 
     @pyqtSlot(object)
     def rmsCalculator(self, audioFrame):
         y = audioFrame.astype('float32') / 32768.0
