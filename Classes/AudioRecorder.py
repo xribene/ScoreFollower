@@ -16,7 +16,7 @@ class AudioRecorder(QObject):
     signalToChromatizer = pyqtSignal(object)
     # signalEnd = pyqtSignal()
     def __init__(self, queue, rate = 22050, chunk = 4096,
-                       input_device_index = 15, output_device_index = 15):
+                       input_device_index = None, output_device_index = None):
         QObject.__init__(self)
         self.rate = rate
         self.i=0
@@ -25,8 +25,27 @@ class AudioRecorder(QObject):
         self.queue = queue
         # self.deque = deque(rate*1)
         self.p = pyaudio.PyAudio()
-        self.input_device_index = input_device_index
-        self.output_device_index = output_device_index
+        self.defaultInputInfo = self.p.get_default_input_device_info()
+        self.defaultOutputInfo = self.p.get_default_output_device_info()
+        self.input_device_index = self.defaultInputInfo['index']
+        self.output_device_index = self.defaultOutputInfo['index']
+        if input_device_index:
+            self.input_device_index = input_device_index
+        if output_device_index:
+            self.output_device_index = output_device_index
+        
+        self.inputDevices = []
+        self.outputDevices = []
+        hostApiIndex = self.p.get_default_host_api_info()['index']
+        for i in range(0, self.p.get_default_host_api_info()['deviceCount']):
+            dev = self.p.get_device_info_by_host_api_device_index(hostApiIndex, i)
+            if dev['maxInputChannels'] > 0:
+                self.inputDevices.append(dev)
+                print(f"{dev}")
+            if dev['maxOutputChannels'] > 0:
+                self.outputDevices.append(dev)
+                print(f"{dev}")
+    
 
         # self.createStream(audioSource)
         self.stopped = True
@@ -38,9 +57,21 @@ class AudioRecorder(QObject):
         logging.warning("audio recorder init done")
 
 
-    def createStream(self, audioSource = "microphone"):
+    def createStream(self, audioSource = "Microphone"):
         self.audioSource = audioSource
-        if self.audioSource != "microphone":
+        
+        if self.audioSource == 'Microphone':
+            self.file = None
+            self.stream = self.p.open(format= pyaudio.paInt16,
+                                    start = False,
+                                    channels = 1,
+                                    rate = self.rate,
+                                    input = True,
+                                    # output = True,
+                                    input_device_index = self.input_device_index,
+                                    frames_per_buffer = self.chunk,
+                                    stream_callback = self._micCallback)
+        else:
             self.file = wave.open(self.audioSource, 'r')
             self.stream = self.p.open(
                                     format=self.p.get_format_from_width(self.file.getsampwidth()),
@@ -53,17 +84,6 @@ class AudioRecorder(QObject):
                                     output_device_index=self.output_device_index,
                                     stream_callback = self._wavCallback)
             logging.debug(f"CHANNELS ARE {self.file.getnchannels()}")
-        else:
-            self.file = None
-            self.stream = self.p.open(format= pyaudio.paInt16,
-                                    start = False,
-                                    channels = 1,
-                                    rate = self.rate,
-                                    input = True,
-                                    # output = True,
-                                    input_device_index = self.input_device_index,
-                                    frames_per_buffer = self.chunk,
-                                    stream_callback = self._micCallback)
             
         
     def reset(self):
@@ -108,9 +128,9 @@ class AudioRecorder(QObject):
         wf.close()
 
     def closeStream(self):
-        if not self.stopped:
-            self.stream.stop_stream()
         if self.stream:
+            if not self.stopped:
+                self.stream.stop_stream()
             self.stream.close()
 
     def terminate(self):

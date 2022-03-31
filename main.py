@@ -1,5 +1,6 @@
 ###########import statements#################
 ##standard PyQt imports (thanks christos!)###
+from syslog import LOG_DAEMON
 from PyQt5 import QtGui, QtCore, QtSvg
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QCheckBox, QComboBox, QDateTimeEdit,QMessageBox,
         QDial, QDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
@@ -110,43 +111,27 @@ class ScoreFollower(QWidget):
         
         self.setupThreads()
         
-        ## set dropdown menus
-        self.audioSourceName = ""
-        scoreNames =  [f.parts[-1] for f in Path(resource_path(f"resources/Pieces")).iterdir() if f.is_dir()]
-        self.pieceName = "Jetee"  # scoreNames[0]
-        testAudios =  [f.parts[-1] for f in Path(resource_path(f"resources/Pieces/{self.pieceName}/testAudio")).iterdir() if f.is_file() and f.parts[-1]!=".DS_Store"]
-        # self.audioSourceName = "microphone" # testAudios[0]
-
-        # self.audioGroup.dropdownAudioSource.blockSignals(True)
-        # self.audioGroup.dropdownAudioSource.clear()
-        # self.audioGroup.dropdownAudioSource.addItems(testAudios)
-        # self.audioGroup.dropdownAudioSource.addItem("microphone")
-        # self.audioGroup.dropdownAudioSource.setCurrentText(self.audioSourceName)
-        # self.audioGroup.dropdownAudioSource.blockSignals(False)
-        self.updateAudioSourceMenu()
-
-        self.scoreGroup.dropdownPiece.blockSignals(True)
-        self.scoreGroup.dropdownPiece.addItems(scoreNames)
-        self.scoreGroup.dropdownPiece.setCurrentText(self.pieceName)
-        self.scoreGroup.dropdownPiece.blockSignals(False)
-
-        self.scoreGroup.dropdownPiece.currentIndexChanged.connect(self.pieceSelectionChange)
-        self.audioGroup.dropdownAudioSource.currentIndexChanged.connect(self.audioSourceSelectionChange)
-
-        # self.pieceName = "Jetee"  # scoreNames[0]
-        self.setNewPiece()
-        self.setNewAudioSource()
-        # self.updateAudioSourceMenu()
-        # self.audioSourceName = "microphone" # testAudios[0]
-        # self.audioGroup.dropdownAudioSource.setCurrentText(self.audioSourceName)
+        ## new dropdowns
         
-        ## this had to go after creating audioRecorder       
-        # self.setNewAudioSource()
 
+        self.scoreGroup.dropdownPiece.currentIndexChanged.connect(self.changedPiece)
+        self.scoreGroup.dropdownSection.currentIndexChanged.connect(self.changedSection)
+        self.audioGroup.dropdownAudioInput.currentIndexChanged.connect(self.changedAudioInput)
+        self.audioGroup.dropdownMode.currentIndexChanged.connect(self.changedMode)
+        # self.audioGroup.dropdownAudioOutput.currentIndexChanged.connect(self.changedAudioOutput)
+
+        self.updateModeItems()
+        self.updateAudioInputItems()
+        self.updatePieceItems()
+        self.pieceName = "Jetee" # perito
+        # self.changedPiece(0) # isws perito
+
+        ## aligner
         self.plotEvery = self.config.plotPeriod
         self.lastJ = -1
         
         self.alignerThread = QThread()
+        # self.referenceChromas = np.zeros((12,2000))
         self.aligner = Aligner(self.referenceChromas, self.chromaBuffer,
                                 n_chroma = self.config.n_chroma, 
                                 c = self.config.c, 
@@ -171,67 +156,112 @@ class ScoreFollower(QWidget):
         #     self.testWavFile = resource_path(f"resources/TestAudio/{self.pieceName}/{self.config.audioInput}")
         self.setupFinished = True
 
-        
+    def updateModeItems(self):
+        modeItems = ['Microphone', 'Wav File']
+        self.mode = modeItems[0]
+        self.audioGroup.dropdownMode.blockSignals(True)
+        self.audioGroup.dropdownMode.addItems(modeItems)
+        self.audioGroup.dropdownMode.setCurrentIndex(-1)
+        self.audioGroup.dropdownMode.setCurrentIndex(self.audioGroup.dropdownMode.findText(self.mode))
+        self.audioGroup.dropdownMode.blockSignals(False)
 
-    def pieceSelectionChange(self,i):
-        print("in pieceSelectionChange")
+    def changedMode(self, i):
+        print(f"in changedMode")
+        if self.mode != self.audioGroup.dropdownMode.currentText():
+            self.mode = self.audioGroup.dropdownMode.currentText()
+            print(f"mode changed to {self.mode} / heading to update the AudioInputItems")
+            self.updateAudioInputItems()
+
+    def updatePieceItems(self):
+        print("in UpdatePieceItems")
+        scoreNames =  [f.parts[-1] for f in Path(resource_path(f"resources/Pieces")).iterdir() if f.is_dir()]
+        self.pieceName = "Jetee"  # scoreNames[0]
+        self.scoreGroup.dropdownPiece.blockSignals(True)
+        self.scoreGroup.dropdownPiece.clear()
+        self.scoreGroup.dropdownPiece.addItems(scoreNames)
+        self.scoreGroup.dropdownPiece.setCurrentIndex(-1)
+        self.scoreGroup.dropdownPiece.blockSignals(False)
+        self.scoreGroup.dropdownPiece.setCurrentIndex(self.scoreGroup.dropdownPiece.findText(self.pieceName)) # TODO maybe allow to send signal here
+
+    def changedPiece(self, i):
+        print(f"in ChangedPiece {i}")
+        # if self.pieceName != self.scoreGroup.dropdownPiece.currentText():
+        self.pieceName = self.scoreGroup.dropdownPiece.currentText()
+        self.updateSectionItems()
         
-        if self.pieceName != self.scoreGroup.dropdownPiece.currentText():
-            self.pieceName = self.scoreGroup.dropdownPiece.currentText()
-            self.setNewPiece()
-            print("in pieceSelectionChange setted New Piece")
-            self.updateAudioSourceMenu()
-            print("in pieceSelectionChange updated AudioSourceMenu")
-            self.setNewAudioSource()
-            print("in pieceSelectionChange setNewAudioSource")
+    def updateSectionItems(self):
+        print(f"in updateSectionItems")
+        sectionNames =  [f.parts[-1] for f in Path(resource_path(f"resources/Pieces/{self.pieceName}")).iterdir() if f.is_dir()]
+
+        self.sectionName = sectionNames[0]
+        print(f"section name is {self.sectionName}")
+        self.scoreGroup.dropdownSection.blockSignals(True)
+        self.scoreGroup.dropdownSection.clear()
+        self.scoreGroup.dropdownSection.addItems(sectionNames)
+        self.scoreGroup.dropdownSection.setCurrentIndex(-1)
+        self.scoreGroup.dropdownSection.blockSignals(False)
+        print(f"before")
+        # self.scoreGroup.dropdownSection.setCurrentText("aderfe") # TODO maybe allow to send signal here
+        self.scoreGroup.dropdownSection.setCurrentIndex(self.scoreGroup.dropdownSection.findText(self.sectionName))
+        print(f"done")
+
+    def changedSection(self, i):
+        print("in changedSection")
+        self.sectionName = self.scoreGroup.dropdownSection.currentText()
+        self.updateReferenceData()
+        if self.audioGroup.dropdownMode.currentText() == 'Wav File':
+            self.updateAudioInputItems()
+    
+    def updateAudioInputItems(self):
+        print(f"in updateAudioInputItems")
+        if self.mode == 'Microphone':
+            audioInputNames = [dev['name'] for dev in self.audioRecorder.inputDevices]
+            self.audioInputName = self.audioRecorder.defaultInputInfo['name']
+            print(f"audioInputName became {self.audioInputName}")
+            self.audioGroup.dropdownAudioInput.blockSignals(True)
+            self.audioGroup.dropdownAudioInput.clear()
+            self.audioGroup.dropdownAudioInput.addItems(audioInputNames)
+            self.audioGroup.dropdownAudioInput.setCurrentIndex(-1)
+            self.audioGroup.dropdownAudioInput.blockSignals(False)
+            self.audioGroup.dropdownAudioInput.setCurrentIndex(self.audioGroup.dropdownAudioInput.findText(self.audioInputName)) # maybe not
+        elif self.mode == 'Wav File':
+            testAudios =  [f.parts[-1] for f in Path(resource_path(f"resources/Pieces/{self.pieceName}/{self.sectionName}/testAudio")).iterdir() if f.is_file() and f.parts[-1]!=".DS_Store"]
+            self.audioInputName = testAudios[0]
+            print(f"audioInputName became {self.audioInputName}")
+            self.audioGroup.dropdownAudioInput.blockSignals(True)
+            self.audioGroup.dropdownAudioInput.clear()
+            self.audioGroup.dropdownAudioInput.addItems(testAudios)
+            self.audioGroup.dropdownAudioInput.setCurrentIndex(-1)
+            
+            self.audioGroup.dropdownAudioInput.blockSignals(False)
+            self.audioGroup.dropdownAudioInput.setCurrentIndex(self.audioGroup.dropdownAudioInput.findText(self.audioInputName))
+
+    def changedAudioInput(self, i):
+        print("in changedAudioInput")
         if self.setupFinished:
             self.reset()
-
-    def updateAudioSourceMenu(self):
-        testAudios =  [f.parts[-1] for f in Path(resource_path(f"resources/Pieces/{self.pieceName}/testAudio")).iterdir() if f.is_file() and f.parts[-1]!=".DS_Store"]
-        # testAudios2 =  [f for f in Path(f"resources/Pieces/{self.pieceName}/testAudio").iterdir()]
-
-        # logging.debug(f"available testAudios {testAudios2}")
-        self.audioGroup.dropdownAudioSource.blockSignals(True)
-        self.audioGroup.dropdownAudioSource.clear()
-        self.audioGroup.dropdownAudioSource.addItems(testAudios)
-        self.audioSourceName = "microphone" # testAudios[0]
-        self.audioGroup.dropdownAudioSource.addItem(self.audioSourceName)
-        self.audioGroup.dropdownAudioSource.setCurrentText(self.audioSourceName)
-        self.audioGroup.dropdownAudioSource.blockSignals(False)
-        
-        # self.audioSourceName = "microphone" # testAudios[0]
-        # self.audioGroup.dropdownAudioSource.setCurrentText(self.audioSourceName)
-
-    def audioSourceSelectionChange(self,):
-        if self.setupFinished:
-            self.reset()
-        print("in audioSourceSelectionChange")
-        if self.audioSourceName != self.audioGroup.dropdownAudioSource.currentText():
-            print("in audioSourceSelectionChange new name")
-            self.audioSourceName = self.audioGroup.dropdownAudioSource.currentText()
-            print(f"in audioSourceSelectionChange new name is {self.audioSourceName}")
-            self.setNewAudioSource()
-
-    def setNewAudioSource(self):
-        print(f"in setNewAudioSource")
-        self.audioRecorder.closeStream()
-        if self.audioSourceName == "microphone":
-            self.audioRecorder.createStream(self.audioSourceName) 
-            print(f"in setNewAudioSource created stream for microphone")
+        # if self.audioInputName != self.audioGroup.dropdownAudioInput.currentText():
+        print("audioInputName changed indeed")
+        self.audioInputName = self.audioGroup.dropdownAudioInput.currentText()
+        # print(f"in audioSourceSelectionChange new name is {self.audioSourceName}")
+        # self.audioRecorder.closeStream()
+        if self.mode == 'Microphone':
+            self.audioRecorder.input_device_index = [dev['index'] for dev in self.audioRecorder.inputDevices if dev['name'] == self.audioInputName][0]
+            # self.audioRecorder.output_device_index = [dev['index'] for dev in self.audioRecorder.outputDevices if dev['name'] == self.audioOutputName]
+            self.audioRecorder.createStream(self.mode) 
+            print(f"in changedAudioInput created stream for Microphone")
         else:
-            print(f"self.audioSourceName is {self.audioSourceName}")
-            self.audioRecorder.createStream(resource_path(f"resources/Pieces/{self.pieceName}/testAudio/{self.audioSourceName}"))
-            print(f"in setNewAudioSource created stream for resources/Pieces/{self.pieceName}/testAudio/{self.audioSourceName}")
+            self.audioRecorder.createStream(resource_path(f"resources/Pieces/{self.pieceName}/{self.sectionName}/testAudio/{self.audioInputName}"))
+            print(f"in changedAudioInput created stream for resources/Pieces/{self.pieceName}/{self.sectionName}/testAudio/{self.audioInputName}")
 
-
-    def setNewPiece(self):
+    def updateReferenceData(self):
         # get the cues dict
         # self.cuesDict = getCuesDict(filePath = Path(f"{self.pieceName}.xml"), 
         #                                 sr = self.config.sr, 
         #                                 hop_length = self.config.hop_length)
-        print(f"in setNewPiece")
-        self.cuesDict = np.load(resource_path(f"resources/Pieces/{self.pieceName}/cuesDict_{self.pieceName}.npy"), allow_pickle=True).item()
+        print(f"in updateReferenceData")
+        sectionNameNoNumber = "".join(self.sectionName.split('_')[1:])
+        self.cuesDict = np.load(resource_path(f"resources/Pieces/{self.pieceName}/{self.sectionName}/cuesDict_{self.pieceName}_{sectionNameNoNumber}.npy"), allow_pickle=True).item()
         frames = list(self.cuesDict.keys())
         frames.sort()
         # barsList = []
@@ -271,7 +301,7 @@ class ScoreFollower(QWidget):
         #                                           chromafb = None,
         #                                           magPower = self.config.magPower
         #                                           )
-        self.referenceChromas = np.load(resource_path(f"resources/Pieces/{self.pieceName}/referenceAudioChromas_{self.pieceName}.npy"))
+        self.referenceChromas = np.load(resource_path(f"resources/Pieces/{self.pieceName}/{self.sectionName}/referenceAudioChromas_{self.pieceName}_{sectionNameNoNumber}.npy"))
         if self.setupFinished:
             self.aligner.referenceChromas = self.referenceChromas
         
@@ -279,9 +309,9 @@ class ScoreFollower(QWidget):
         # np.save("referenceChromas.npy", self.referenceChromas)
         # logging.debug(f"reference Chromas shape is {self.referenceChromas.shape}")
         # print(self.referenceChromas.shape)
-        repeats = np.ones((self.referenceChromas.shape[0]))
-        repeats[600:700] = 2
-        repeats[800:900] = 2
+        # repeats = np.ones((self.referenceChromas.shape[0]))
+        # repeats[600:700] = 2
+        # repeats[800:900] = 2
         # repeats[1500:1700] = 2
         # self.referenceChromas = np.repeat(self.referenceChromas, list(repeats), axis=0)
 

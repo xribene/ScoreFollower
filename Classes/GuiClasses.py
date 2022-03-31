@@ -116,9 +116,9 @@ class ScoreBox(QGroupBox):
         self.layout = QGridLayout(self)
         
 
-        self.dropdownPiece = QComboBoxBlocking(self)
-        self.dropdownSection = QComboBoxBlocking(self)
-        # self.dropdownAudioSource = QComboBoxBlocking(self)
+        self.dropdownPiece = QComboBox(self)
+        self.dropdownSection = QComboBox(self)
+        # self.dropdownAudioSource = QComboBox(self)
         # self.dropdown.addItem("Jetee")
 
         self.layout.addWidget(self.dropdownPiece, 0, 0, 1, 1,Qt.AlignCenter)
@@ -141,32 +141,16 @@ class ScoreBox(QGroupBox):
 class AudioBox(QGroupBox):
     def __init__(self, config, parent):
         super(AudioBox, self).__init__()
-        # Set the logger
-        # logTextBox = QTextEditLogger(self)
-        # logTextBox.setFormatter(logging.Formatter('%(asctime)s.%(msecs)05d %(levelname)s %(module)s - %(funcName)s -%(threadName)s -%(lineno)s: %(message)s'))
-        # logging.getLogger().addHandler(logTextBox)
-        # logging.getLogger().setLevel(logging.DEBUG)
 
-        # initializations
         self.setTitle("&Audio Settings")
         # self.setFixedSize(300,300)
         self.config = config
         self.layout = QGridLayout(self)
-        # self.barLabel = QLabel("Bar")
-        # self.cueLabel = QLabel("Cue")
-        # self.barDisp = QLCDNumber()
-        # self.barDisp = QLCDNumber(self)
-        # self.barDisp.display(-1)
-        # self.barDisp.setDigitCount(3)
-        # self.cueDisp = QLCDNumber()
-        # self.cueDisp = QLCDNumber(self)
-        # self.cueDisp.display(-1)
-        # self.cueDisp.setDigitCount(3)
-        # self.barLabel.setBuddy(self.barDisp)
-        # self.cueLabel.setBuddy(self.cueDisp)
 
-        # self.dropdownPiece = QComboBoxBlocking(self)
-        self.dropdownAudioSource = QComboBoxBlocking(self)
+        self.dropdownMode = QComboBox(self)
+        self.modeLabel = QLabel("Mode")
+        self.modeLabel.setBuddy(self.dropdownMode)
+
         self.rmsDisp = QLineEdit(self)
         self.rmsDisp.setEnabled(False)
         self.rmsDisp.setObjectName("rmsDisp")
@@ -182,15 +166,27 @@ class AudioBox(QGroupBox):
         self.rmsThrDisp.setValidator(rmsValidator)
         self.rmsThrDisp.setText(str(self.config.defaultRmsThr))
 
-        # self.layout.addWidget(self.dropdownPiece, 0, 0, 1, 1,Qt.AlignCenter)
-        self.layout.addWidget(self.dropdownAudioSource, 0, 0, 1, 2)#, Qt.AlignCenter)
-        self.layout.addWidget(self.rmsDisp, 0, 2, 1, 1)#, Qt.AlignCenter)
-        self.layout.addWidget(self.rmsThrDisp, 0, 3, 1, 1)#, Qt.AlignCenter)
-        # self.layout.addWidget(self.barLabel, 2, 0, 1, 1, Qt.AlignCenter)
-        # self.layout.addWidget(self.barDisp, 2, 1, 1, 1, Qt.AlignCenter)
-        # self.layout.addWidget(self.cueLabel, 3, 0, 1, 1, Qt.AlignCenter)
-        # self.layout.addWidget(self.cueDisp, 3, 1, 1, 1, Qt.AlignCenter)
+        self.dropdownAudioInput = QComboBox(self)
+        self.inputLabel = QLabel("Input")
+        self.inputLabel.setBuddy(self.dropdownMode)
+
+        self.dropdownAudioOutput = QComboBox(self)
+        self.outputLabel = QLabel("Output")
+        self.outputLabel.setBuddy(self.dropdownMode)
+
+        self.layout.addWidget(self.modeLabel, 0, 0, 1, 1)#, Qt.AlignCenter)
+        self.layout.addWidget(self.dropdownMode, 0, 1, 1, 2)#, Qt.AlignCenter)
+        
+        self.layout.addWidget(self.inputLabel, 1, 0, 1, 1)#, Qt.AlignCenter)
+        self.layout.addWidget(self.dropdownAudioInput, 1, 1, 1, 2)#, Qt.AlignCenter)
+        self.layout.addWidget(self.rmsDisp, 1, 3, 1, 1)#, Qt.AlignCenter)
+        self.layout.addWidget(self.rmsThrDisp, 1, 4, 1, 1)#, Qt.AlignCenter)
+
+        self.layout.addWidget(self.outputLabel, 2, 0, 1, 1)#, Qt.AlignCenter)
+        self.layout.addWidget(self.dropdownAudioOutput, 2, 1, 1, 2)#, Qt.AlignCenter)
+
         self.setLayout(self.layout)
+
 class AlignBox(QGroupBox):
     def __init__(self, config, parent):
         super(AlignBox, self).__init__()
