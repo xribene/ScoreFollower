@@ -63,6 +63,7 @@ class Aligner(QObject):
         self.d = np.array(np.ones((self.pathLenMax, self.pathLenMax)) * np.inf)
         self.d[0,0] = 0
         self.D[0,0] = self.d[0,0]
+        self.dTest = np.array(np.ones((self.pathLenMax, self.pathLenMax)) * np.inf)
         #this is a matrix of the euclidean distance between frames of audio
         ###############################################
         #### least cost path ##########################
@@ -81,7 +82,8 @@ class Aligner(QObject):
         self.runCount = 1
         self.i = 0
         self.bStart = 0
-        self.durs = []
+        self.dursJ = []
+        self.dursT = []
         self.chromaQueue.queue.clear()
         if self.reachedEnd is True:
             self.reachedEnd = False
@@ -94,7 +96,7 @@ class Aligner(QObject):
         while(self.j < self.frameNumScore-1 and self.resetActivated is False):
             
             if self.recording is True:
-                aa = time.time()
+                
                 
                 # logging.debug(f"before \n{self.D[:10,:10]}")
                 if self.needNewFrame == 1: # and not self.inputQueue.empty():
@@ -133,15 +135,18 @@ class Aligner(QObject):
                     self.startFrameT = self.t
                     direction = 'B'
                 logging.debug(f"J = {self.j}, T = {self.t}")
-
+                aa = time.time()
                 if direction in ["C","B"]:
                     self.t += 1
                     self.needNewFrame = 1
                     jj = np.max([self.startFrameJ, self.j - self.c+1])
-                    # ll = len(range(jj,self.j+1))
-                    # assert ll == self.j+1-jj
-                    for k in range(jj, self.j+1):
-                        self.d[k, self.t] = np.linalg.norm(self.V[:,k] - self.U[:,-1])**2
+                    # for k in range(jj, self.j+1):
+                    #     self.d[k, self.t] = np.linalg.norm(self.V[:,k] - self.U[:,-1])**2
+
+                    self.d[jj:(self.j+1), self.t] = np.linalg.norm(self.V[:,jj:(self.j+1)] - self.U[:,-1:], axis = 0)**2
+                    
+                    # if np.allclose(self.dTest[jj:(self.j+1), self.t], self.d[jj:(self.j+1), self.t] ) is False:
+                    #     pdb.set_trace()
                     self.D[jj, self.t] = self.D[jj, self.t-1] + self.d[jj, self.t]
                     for k in range(jj+1, self.j+1):
                         tmp1 = self.d[k, self.t] + self.D[k-1, self.t]
@@ -151,14 +156,16 @@ class Aligner(QObject):
                         if not np.isfinite(np.min([tmp1, tmp2, tmp3])).all():
                             logging.error(f'inf in T calc')
                             raise
+                    # self.D[jj+1: self.j+1, self.t] = np.random.randn(len(range(jj+1, self.j+1)))
 
                 if direction in ["R","B"]:
                     self.j += 1
                     tt = np.max([self.startFrameT, self.t - self.c + 1])
-                    # ll = len(range(tt,self.t+1))
-                    # assert ll == self.t+1-tt
-                    for k in range(tt, self.t+1):
-                        self.d[self.j, k] = np.linalg.norm(self.V[:,self.j] - self.U[:,k-self.t+self.c-1])**2
+                    # for k in range(tt, self.t+1):
+                    #     self.d[self.j, k] = np.linalg.norm(self.V[:,self.j] - self.U[:,k-self.t+self.c-1])**2
+                    self.d[self.j, tt:(self.t+1)] = np.linalg.norm(np.expand_dims(self.V[:,self.j],axis=1) - self.U[:,(tt-self.t+self.c-1):(self.t+1-self.t+self.c-1)], axis = 0)**2
+                    # if self.j > 10 and self.t > 10 and np.allclose(self.dTest[self.j, tt:(self.t+1)], self.d[self.j, tt:(self.t+1)] ) is False:
+                    #     pdb.set_trace()
                     self.D[self.j, tt] = self.D[self.j-1, tt] + self.d[self.j, tt]
                     for k in range(tt+1, self.t+1):
                         tmp1 = self.d[self.j, k] + self.D[self.j, k-1]
@@ -200,7 +207,11 @@ class Aligner(QObject):
                 # self.signalToOSCclient.emit(self.i)
                 
                 self.signalToMainThread.emit([self.t, self.j])
-                self.durs.append(time.time() - aa)
+                # self.durs.append(time.time() - aa)
+                if direction == "R":
+                    self.dursJ.append(time.time() - aa)
+                elif direction == 'C':
+                    self.dursT.append(time.time() - aa)
             else:  
                 # print(f"{self.recording}")
                 time.sleep(0.1)
@@ -276,8 +287,8 @@ class Aligner(QObject):
             self.x = self.t
             self.y = self.j
         
-        # if self.t < self.c:
-        #     return "B"
+        if self.t < 10:
+            return "B"
         if self.runCount > self.maxRunCount:
             if self.previous == "R":
                 return "C"

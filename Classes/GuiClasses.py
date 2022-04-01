@@ -121,8 +121,8 @@ class ScoreBox(QGroupBox):
         # self.dropdownAudioSource = QComboBox(self)
         # self.dropdown.addItem("Jetee")
 
-        self.layout.addWidget(self.dropdownPiece, 0, 0, 1, 1,Qt.AlignCenter)
-        self.layout.addWidget(self.dropdownSection, 1, 0, 1, 1,Qt.AlignCenter)
+        self.layout.addWidget(self.dropdownPiece, 0, 0, 1, 1)# ,Qt.AlignCenter)
+        self.layout.addWidget(self.dropdownSection, 1, 0, 1, 1)# ,Qt.AlignCenter)
         # self.layout.addWidget(self.bar)
 
         # self.layout.addWidget(self.barLabel, 2, 0, 1, 1, Qt.AlignCenter)

@@ -32,7 +32,8 @@ args = parser.parse_args()
 path = Path(args.path[0])
 #%%
 # path = Path("resources/Pieces/Piece/")
-pieceName = path.parts[-1]
+pieceName = path.parts[-2]
+sectionName = "".join(path.parts[-1].split("_")[1:])
 wavFile = returnCorrectFile(path, "wav")
 midFile = returnCorrectFile(path, "mid")
 xmlFile = returnCorrectFile(path, "xml")
@@ -56,14 +57,14 @@ referenceChromas = getChromas(wavFile,
                                 magPower = config.magPower
                                 )
 
-chromasFile = path/f"referenceAudioChromas_{pieceName}.npy"
+chromasFile = path/f"referenceAudioChromas_{pieceName}_{sectionName}.npy"
 if chromasFile.is_file():
-    chromasFile.rename(path/f"referenceAudioChromas_{pieceName}_OLD.npy")
+    chromasFile.rename(path/f"referenceAudioChromas_{pieceName}_{sectionName}_OLD.npy")
     print("kept backup of old chromas")
 
-cuesFile = path/f"cuesDict_{pieceName}.npy"
+cuesFile = path/f"cuesDict_{pieceName}_{sectionName}.npy"
 if cuesFile.is_file():
-    cuesFile.rename(path/f"cuesDict_{pieceName}_OLD.npy")
+    cuesFile.rename(path/f"cuesDict_{pieceName}_{sectionName}_OLD.npy")
     print("kept backup of old cues")
 
 np.save(cuesFile, cuesDict)

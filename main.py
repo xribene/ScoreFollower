@@ -211,6 +211,9 @@ class ScoreFollower(QWidget):
         self.updateReferenceData()
         if self.audioGroup.dropdownMode.currentText() == 'Wav File':
             self.updateAudioInputItems()
+        elif self.audioGroup.dropdownMode.currentText() == 'Microphone':
+            if self.setupFinished:
+                self.reset()
     
     def updateAudioInputItems(self):
         print(f"in updateAudioInputItems")
@@ -410,9 +413,11 @@ class ScoreFollower(QWidget):
         self.alignGroup.barDisp.setText(str(0))
         self.audioRecorder.reset()
         self.aligner.reset()
+        print("out of aligner")
         self.alignGroup.reset()
         # self.alignGroup.scatter.clear()
         # self.alignGroup.scatter.sigPlotChanged.emit(self.alignGroup.scatter)
+        print("before starting aligner")
         self.startAligner()
         logging.debug("finished main reset")
         # self.timer.stop()
@@ -515,6 +520,8 @@ class ScoreFollower(QWidget):
         if self.audioRecorder.stopped is True:
             self.aligner.recording = False
             self.toolbar.playPause.setIcon(QtGui.QIcon(resource_path("resources/svg/rec.svg")))
+            logging.debug(f"{len(self.aligner.dursJ)} J iterations with mean running time = {np.mean(self.aligner.dursJ)}")
+            logging.debug(f"{len(self.aligner.dursT)} T iterations with mean running time = {np.mean(self.aligner.dursT)}")
         else:
             self.aligner.recording = True
             self.toolbar.playPause.setIcon(QtGui.QIcon(resource_path("resources/svg/pause.svg")))
