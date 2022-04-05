@@ -5,19 +5,13 @@ from PyQt5.QtWidgets import (QComboBox,  QPushButton,
         QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
         QTextEdit,  QVBoxLayout, QLCDNumber,QLabel, QHBoxLayout, QTextEdit, QGridLayout)
 
-from PyQt5.QtCore import (QObject, pyqtSlot, QThread, Qt)
+from PyQt5.QtCore import (QObject, pyqtSlot, pyqtSignal, QThread, Qt)
 from pyqtgraph import plot
 import pyqtgraph as pg
 
 import logging
 
 import numpy as np
-
-class QComboBoxBlocking(QComboBox):
-    def setCurrentIndex(self, ix):
-        self.blockSignals(True)
-        QComboBox.setCurrentText(self, ix)
-        self.blockSignals(False)
 
 class QLabBox(QGroupBox):
     def __init__(self, config, parent):
@@ -49,6 +43,7 @@ class QLabBox(QGroupBox):
         self.cursor1.setPosition(0)
         self.clientAutoMessageText.setTextCursor(self.cursor1) 
         self.serverMessageText = QTextEdit()
+        self.serverMessageText.document().setMaximumBlockCount(10)
         self.cursor2 = QtGui.QTextCursor(self.serverMessageText.document())
         self.cursor2.setPosition(0)
         self.serverMessageText.setTextCursor(self.cursor2) 
@@ -111,7 +106,8 @@ class ScoreBox(QGroupBox):
 
         # initializations
         self.setTitle("&Score")
-        self.setFixedSize(300,300)
+        # self.setFixedSize(300,300)
+        self.setMinimumSize(300,100)
         self.config = config
         self.layout = QGridLayout(self)
         
@@ -144,6 +140,7 @@ class AudioBox(QGroupBox):
 
         self.setTitle("&Audio Settings")
         # self.setFixedSize(300,300)
+        self.setMinimumSize(300,300)
         self.config = config
         self.layout = QGridLayout(self)
 
@@ -166,6 +163,18 @@ class AudioBox(QGroupBox):
         self.rmsThrDisp.setValidator(rmsValidator)
         self.rmsThrDisp.setText(str(self.config.defaultRmsThr))
 
+        # self.tuningDisp = QLineEdit(self)
+        # self.tuningDisp.setEnabled(False)
+        # self.tuningDisp.setObjectName("tuningDisp")
+
+        self.channelDisp = QLineEdit(self)
+        self.channelDisp.setEnabled(True)
+        self.channelDisp.setObjectName("tuningDisp")
+        rx = QtCore.QRegExp(r"^([1-9]{1,2};)*[0-9]{1,2}$")
+        chanValidator = QtGui.QRegExpValidator(rx, self)
+        self.channelDisp.setValidator(chanValidator)
+        self.channelDisp.setText(str(0))
+
         self.dropdownAudioInput = QComboBox(self)
         self.inputLabel = QLabel("Input")
         self.inputLabel.setBuddy(self.dropdownMode)
@@ -174,16 +183,17 @@ class AudioBox(QGroupBox):
         self.outputLabel = QLabel("Output")
         self.outputLabel.setBuddy(self.dropdownMode)
 
-        self.layout.addWidget(self.modeLabel, 0, 0, 1, 1)#, Qt.AlignCenter)
-        self.layout.addWidget(self.dropdownMode, 0, 1, 1, 2)#, Qt.AlignCenter)
+        self.layout.addWidget(self.modeLabel,          0, 0, 1, 1)#, Qt.AlignCenter)
+        self.layout.addWidget(self.dropdownMode,       0, 1, 1, 3)#, Qt.AlignCenter)
         
-        self.layout.addWidget(self.inputLabel, 1, 0, 1, 1)#, Qt.AlignCenter)
-        self.layout.addWidget(self.dropdownAudioInput, 1, 1, 1, 2)#, Qt.AlignCenter)
-        self.layout.addWidget(self.rmsDisp, 1, 3, 1, 1)#, Qt.AlignCenter)
-        self.layout.addWidget(self.rmsThrDisp, 1, 4, 1, 1)#, Qt.AlignCenter)
+        self.layout.addWidget(self.inputLabel,         1, 0, 1, 1)#, Qt.AlignCenter)
+        self.layout.addWidget(self.dropdownAudioInput, 1, 1, 1, 3)#, Qt.AlignCenter)
+        self.layout.addWidget(self.rmsDisp,            2, 1, 1, 1)#, Qt.AlignCenter)
+        self.layout.addWidget(self.rmsThrDisp,         2, 2, 1, 1)#, Qt.AlignCenter)
+        self.layout.addWidget(self.channelDisp,         2, 3, 1, 1)#, Qt.AlignCenter)
 
-        self.layout.addWidget(self.outputLabel, 2, 0, 1, 1)#, Qt.AlignCenter)
-        self.layout.addWidget(self.dropdownAudioOutput, 2, 1, 1, 2)#, Qt.AlignCenter)
+        self.layout.addWidget(self.outputLabel,        3, 0, 1, 1)#, Qt.AlignCenter)
+        self.layout.addWidget(self.dropdownAudioOutput,3, 1, 1, 3)#, Qt.AlignCenter)
 
         self.setLayout(self.layout)
 
@@ -201,12 +211,12 @@ class AlignBox(QGroupBox):
         self.config = config
         self.layout = QGridLayout(self)
 
-        self.win = pg.GraphicsWindow(size=(500,500))
+        self.win = pg.GraphicsWindow()#size=(500,500)
         self.win.setBackground('#001219')
         # self.win.getAxis('left').setTextPen('b')
 
 
-        self.setMinimumSize(300,300)
+        # self.setMinimumSize(300,300)
         self.plot = self.win.addPlot(title = "Minimum Cost Path",
                                 #   labels = {
                                 #   'bottom':"Audio Frames",
@@ -217,9 +227,28 @@ class AlignBox(QGroupBox):
         self.plot.addItem(self.scatter)
 
         label_style = {"color": "#bb3e03", "font-size": "14pt"}
-        self.plot.setLabel("bottom", "Audio Frames", **label_style)
-        self.plot.setLabel("left", "Score Frames", **label_style)
-        # self.plot.getAxis("left").setLabel(**label_style)
+        self.plot.setLabel("bottom", "Audio time(s)", **label_style)
+        self.plot.setLabel("left", "Score Bars", **label_style)
+        self.plot.setLabel("right", "Score Cues", **label_style)
+        # axis_style = {
+        #     # 'tickTextOffset': [5, 2],
+        #                 # 'tickTextWidth': 30,
+        #                 # 'tickTextHeight': 18,
+        #                 # 'autoExpandTextSpace': True,
+        #                 # 'autoReduceTextSpace': True,
+        #                 # 'tickFont': QtGui.QFont("Times", QtGui.QFont.Bold),
+        #                 # 'stopAxisAtTick': (False, False),
+        #                 # 'textFillLimits': [(0, 0.8), (2, 0.6), (4, 0.4), (6, 0.2)],
+        #                 # 'showValues': True,
+        #                 # 'tickLength': -5,
+        #                 # 'maxTickLevel': 2,
+        #                 # 'maxTextLevel': 2,
+        #                 # 'tickAlpha': None
+        #                 }
+        # axis_style = self.plot.getAxis("left").style
+        # axis_style['tickFond'] = QtGui.QFont("Times", QtGui.QFont.Bold)
+        # axis_style['tickTextOffset'] = [5,2]
+        # self.plot.getAxis("left").setStyle(**axis_style)
         # self.plot.setXRange(0, 2000, padding=0)
         # self.plot.setYRange(0, 2000, padding=0)
         
@@ -277,7 +306,8 @@ class AlignBox(QGroupBox):
 
 
 class QLabInterface(QObject):
-    # signalToAligner = pyqtSignal()
+    signalNewBarOsc = pyqtSignal(str)
+    signalNewCueOsc = pyqtSignal(str)
     def __init__(self, config, oscClient, oscListener, qLabGroup):
         super(QLabInterface, self).__init__()
 
@@ -290,9 +320,6 @@ class QLabInterface(QObject):
         self.connectionStatus = False
         self.greetingsCnt = 0
         self.greetingsRsp = 0
-        # self.timer = QtCore.QTimer()
-        # self.timer.timeout.connect(self.checkConnection)
-        # self.timer.start(1000)
 
         self.thumpsCnt = 0
         # self.thumpsRsp = 0
@@ -318,6 +345,16 @@ class QLabInterface(QObject):
         
     def sendBarTrigger(self, cue):
         address = f"/bar/{cue['ind']}"
+        self.oscClient.emit(address, arg = None)
+        self.updateClientText(address, args = None)
+
+    def sendStartTrigger(self, event):
+        address = f"/start"
+        self.oscClient.emit(address, arg = None)
+        self.updateClientText(address, args = None)
+
+    def sendStopTrigger(self, event):
+        address = f"/stop"
         self.oscClient.emit(address, arg = None)
         self.updateClientText(address, args = None)
 
@@ -429,7 +466,16 @@ class QLabInterface(QObject):
             logging.error(f"TouchResponseCallback got {address} and args {args}")
             raise # TODO not a good idea to raise like this
         
-        # check if this is a response to Version
+        if len(addressParts) >= 3:
+            if addressParts[1] == "setBar":
+                newBar = addressParts[2]
+                self.signalNewBarOsc.emit(newBar)
+                logging.debug(f"Setting bar to {addressParts[2]}")
+
+            elif addressParts[1] == "setCue":
+                newCue = addressParts[2]
+                self.signalNewCueOsc.emit(newCue)
+                logging.debug(f"Setting cue to {addressParts[2]}")
 
         self.updateListenerText("touchDesigner", addressParts, args)
 

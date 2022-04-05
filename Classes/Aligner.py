@@ -7,6 +7,8 @@ import queue
 from math import sqrt
 import time
 import pdb; 
+from offline.utils_offline import cosine_distance
+from scipy.spatial.distance import cosine
 
 class Aligner(QObject):
     signalToMainThread = pyqtSignal(object)
@@ -28,8 +30,8 @@ class Aligner(QObject):
         self.j_todo_flag = False
         ##############################################
         # self.scoreChroma = score_chroma
-        self.lastChroma = np.zeros((n_chroma,1))
-        self.zeroChroma = np.zeros((n_chroma,1))
+        self.lastChroma = np.ones((n_chroma,1)) / np.sqrt(12) # norm2
+        self.zeroChroma = np.ones((n_chroma,1)) / np.sqrt(12) # norm2
 
         self.running = False
         self.reachedEnd = False
@@ -50,7 +52,7 @@ class Aligner(QObject):
         self.V = np.transpose(self.referenceChromas)
         self.j = 0
         
-        self.U = np.zeros((self.n_chroma, self.c)) # audio chromas
+        self.U = np.ones((self.n_chroma, self.c)) / np.sqrt(12) # audio chromas
         self.t = 0
 
         self.x = 0
@@ -142,6 +144,7 @@ class Aligner(QObject):
                     jj = np.max([self.startFrameJ, self.j - self.c+1])
                     # for k in range(jj, self.j+1):
                     #     self.d[k, self.t] = np.linalg.norm(self.V[:,k] - self.U[:,-1])**2
+                    #     # self.d[k, self.t] = cosine(self.V[:,k], self.U[:,-1])**2
 
                     self.d[jj:(self.j+1), self.t] = np.linalg.norm(self.V[:,jj:(self.j+1)] - self.U[:,-1:], axis = 0)**2
                     
@@ -161,9 +164,14 @@ class Aligner(QObject):
                 if direction in ["R","B"]:
                     self.j += 1
                     tt = np.max([self.startFrameT, self.t - self.c + 1])
+
                     # for k in range(tt, self.t+1):
                     #     self.d[self.j, k] = np.linalg.norm(self.V[:,self.j] - self.U[:,k-self.t+self.c-1])**2
+                    #     # print(f"V is {self.V[:,self.j]} \n U is {self.U[:,k-self.t+self.c-1]} \n dist is {cosine_distance(self.V[:,self.j], self.U[:,k-self.t+self.c-1])}")
+                    #     # self.d[self.j, k] = cosine(self.V[:,self.j], self.U[:,k-self.t+self.c-1])**2
+                    
                     self.d[self.j, tt:(self.t+1)] = np.linalg.norm(np.expand_dims(self.V[:,self.j],axis=1) - self.U[:,(tt-self.t+self.c-1):(self.t+1-self.t+self.c-1)], axis = 0)**2
+                    
                     # if self.j > 10 and self.t > 10 and np.allclose(self.dTest[self.j, tt:(self.t+1)], self.d[self.j, tt:(self.t+1)] ) is False:
                     #     pdb.set_trace()
                     self.D[self.j, tt] = self.D[self.j-1, tt] + self.d[self.j, tt]

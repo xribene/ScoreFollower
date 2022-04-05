@@ -53,6 +53,7 @@ class AudioRecorder(QObject):
         self.stream = None
         self.file = None
         self.emmiting = True
+        self.inputChannels = [-1]
 
         logging.warning("audio recorder init done")
 
@@ -63,9 +64,9 @@ class AudioRecorder(QObject):
         if self.audioSource == 'Microphone':
             self.file = None
             self.maxInputChannels = self.p.get_device_info_by_host_api_device_index(self.hostApiIndex, self.input_device_index)['maxInputChannels']
-            self.actualInputChannels = self.maxInputChannels
+            self.actualMaxInputChannels = self.maxInputChannels
             self.stream = None
-            while self.actualInputChannels > 0:
+            while self.actualMaxInputChannels > 0:
                 try:
                     self.stream = self.p.open(format= pyaudio.paInt16,
                                         start = False,
@@ -77,13 +78,17 @@ class AudioRecorder(QObject):
                                         frames_per_buffer = self.chunk,
                                         stream_callback = self._micCallback)
                 except:
-                    self.actualInputChannels -= 1
+                    self.actualMaxInputChannels -= 1
                 if self.stream:
                     break
             if self.stream is None:
-                logging.error(f"Problem with number of channels. Max is {self.maxInputChannels} Actual is {self.actualInputChannels}")
+                logging.error(f"Problem with number of channels. Max is {self.maxInputChannels} Actual is {self.actualMaxInputChannels}")
                 raise
-            logging.debug(f"Actual is {self.actualInputChannels}")
+            logging.debug(f"Actual is {self.actualMaxInputChannels}")
+
+            if self.inputChannels == [-1]:
+                self.inputChannels = list(range(self.actualMaxInputChannels))  
+            
                 
         else:
             self.file = wave.open(self.audioSource, 'r')
@@ -98,7 +103,10 @@ class AudioRecorder(QObject):
                                     output_device_index=self.output_device_index,
                                     stream_callback = self._wavCallback)
             logging.debug(f"CHANNELS ARE {self.file.getnchannels()}")
-            
+        
+        
+        
+
         
     def reset(self):
         self.stopStream()
@@ -159,8 +167,11 @@ class AudioRecorder(QObject):
 
     def  _micCallback(self, in_data, frame_count, time_info, status):
         data = np.frombuffer(in_data, "int16")
-        data_per_channel=[data[chan::self.actualInputChannels] for chan in range(self.actualInputChannels)]
-        mono = data_per_channel[1]
+        # print(data.shape)
+        data_per_channel=[data[chan::self.actualMaxInputChannels] for chan in self.inputChannels]
+        # mono = data_per_channel[1]
+        mono = sum(data_per_channel) / len(self.inputChannels)
+        # print(f"mono shape {mono.shape} ")
         # print(f"len of data_per_channel is {len(data_per_channel)}")
         if self.emmiting:
             self.signalToChromatizer.emit(mono)
@@ -175,7 +186,8 @@ class AudioRecorder(QObject):
         data_per_channel=[data[chan::self.file.getnchannels()] for chan in range(self.file.getnchannels())]
         # logging.debug(f"{data_per_channel[0].shape}")
         # mono = (data_per_channel[0] + data_per_channel[1])/2
-        mono = data_per_channel[0]
+        # print(data.shape)
+        mono = sum(data_per_channel) / self.file.getnchannels()
         self.signalToChromatizer.emit(mono)
         # self.queue.push(mono)
         # self.i += 1
