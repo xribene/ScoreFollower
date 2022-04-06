@@ -348,12 +348,12 @@ class QLabInterface(QObject):
         self.oscClient.emit(address, arg = None)
         self.updateClientText(address, args = None)
 
-    def sendStartTrigger(self, event):
+    def sendStartTrigger(self):
         address = f"/start"
         self.oscClient.emit(address, arg = None)
         self.updateClientText(address, args = None)
 
-    def sendStopTrigger(self, event):
+    def sendStopTrigger(self):
         address = f"/stop"
         self.oscClient.emit(address, arg = None)
         self.updateClientText(address, args = None)

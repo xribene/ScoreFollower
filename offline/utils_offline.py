@@ -100,7 +100,7 @@ def getCuesDict(filePath, sr = 44100, hop_length = 1024):
 def getChromas(filePath, sr = 44100, n_fft = 8192, window_length = 2048,
                         hop_length = 1024, chromaType = "stft", n_chroma = 12,
                         norm=2, normAudio = False, windowType='hamming',
-                        chromafb = None, magPower = 1):
+                        chromafb = None, magPower = 1, useZeroChromas = True):
     # TODO if the folders exist, don't generate chromas again.
     ext = str(filePath.parts[-1]).split(".")[-1]
     # logging.info(f'{ext}')
@@ -179,9 +179,14 @@ def getChromas(filePath, sr = 44100, n_fft = 8192, window_length = 2048,
             ## What I think is right, and also matches with matlab
             while i*stride+frame_len < wav.shape[-1]:
                 chunk = wav[i*stride:i*stride+frame_len]
+                if not np.any(chunk):
+                    if useZeroChromas:
+                        chromaVector = np.zeros(n_chroma)
+                    else:
+                        chromaVector = librosa.util.normalize(np.ones(n_chroma) / 12, norm=norm, axis=0)
                 # norm_chroma = librosa.util.normalize(raw_chroma, norm=norm, axis=0)
-                # 
-                chromaVector = getChromaFrame(chunk = chunk, chromafb = chromafb, fft_window = fft_window, 
+                else:
+                    chromaVector = getChromaFrame(chunk = chunk, chromafb = chromafb, fft_window = fft_window, 
                                                 n_fft = n_fft ,norm = norm, magPower = magPower)
                 chromaFrames.append(chromaVector)
                 i += 1

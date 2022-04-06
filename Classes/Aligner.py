@@ -14,7 +14,7 @@ class Aligner(QObject):
     signalToMainThread = pyqtSignal(object)
     signalEnd = pyqtSignal()
     def __init__(self, referenceChromas, chromaBuffer, n_chroma = 12, 
-                        c = 200, maxRunCount = 3, 
+                        c = 200, maxRunCount = 3, power = 1,
                         metric = "sqeuclidean", w = 0.5):
         QObject.__init__(self)
         #### parameters ###############################
@@ -28,6 +28,7 @@ class Aligner(QObject):
         self.w = w
         self.j_todo = 0
         self.j_todo_flag = False
+        self.power = power
         ##############################################
         # self.scoreChroma = score_chroma
         self.lastChroma = np.ones((n_chroma,1)) / np.sqrt(12) # norm2
@@ -126,6 +127,7 @@ class Aligner(QObject):
                 
 
                 self.needNewFrame = 0
+
                 direction = self.getInc()
 
                 if self.j_todo_flag:
@@ -136,7 +138,9 @@ class Aligner(QObject):
                     self.startFrameJ = self.j
                     self.startFrameT = self.t
                     direction = 'B'
+
                 logging.debug(f"J = {self.j}, T = {self.t}")
+
                 aa = time.time()
                 if direction in ["C","B"]:
                     self.t += 1
@@ -146,21 +150,27 @@ class Aligner(QObject):
                     #     self.d[k, self.t] = np.linalg.norm(self.V[:,k] - self.U[:,-1])**2
                     #     # self.d[k, self.t] = cosine(self.V[:,k], self.U[:,-1])**2
 
-                    self.d[jj:(self.j+1), self.t] = np.linalg.norm(self.V[:,jj:(self.j+1)] - self.U[:,-1:], axis = 0)**2
+                    self.d[jj:(self.j+1), self.t] = np.linalg.norm(self.V[:,jj:(self.j+1)] - self.U[:,-1:], axis = 0)**self.power
                     
                     # if np.allclose(self.dTest[jj:(self.j+1), self.t], self.d[jj:(self.j+1), self.t] ) is False:
                     #     pdb.set_trace()
-                    self.D[jj, self.t] = self.D[jj, self.t-1] + self.d[jj, self.t]
-                    for k in range(jj+1, self.j+1):
-                        tmp1 = self.d[k, self.t] + self.D[k-1, self.t]
-                        tmp2 = self.w*self.d[k, self.t] + self.D[k-1, self.t-1]
-                        tmp3 = self.d[k, self.t] + self.D[k, self.t-1]
-                        self.D[k, self.t] = np.min([tmp1, tmp2, tmp3])
-                        if not np.isfinite(np.min([tmp1, tmp2, tmp3])).all():
-                            logging.error(f'inf in T calc')
-                            raise
-                    # self.D[jj+1: self.j+1, self.t] = np.random.randn(len(range(jj+1, self.j+1)))
+                    # self.D[jj, self.t] = self.D[jj, self.t-1] + self.d[jj, self.t]
+                    # for k in range(jj+1, self.j+1):
+                    #     tmp1 = self.d[k, self.t] + self.D[k-1, self.t]
+                    #     tmp2 = self.w*self.d[k, self.t] + self.D[k-1, self.t-1]
+                    #     tmp3 = self.d[k, self.t] + self.D[k, self.t-1]
+                    #     self.D[k, self.t] = np.min([tmp1, tmp2, tmp3])
+                    #     if not np.isfinite(np.min([tmp1, tmp2, tmp3])).all():
+                    #         logging.error(f'inf in T calc')
+                    #         raise
 
+                    self.D[jj, self.t] = self.D[jj, self.t-1] + self.d[jj, self.t]
+                
+                    tmp1 = self.d[jj+1: self.j+1, self.t] + self.D[jj: self.j, self.t]
+                    tmp2 = self.w*self.d[jj+1: self.j+1, self.t] + self.D[jj: self.j, self.t-1]
+                    tmp3 = self.d[jj+1: self.j+1, self.t] + self.D[jj+1: self.j+1, self.t-1]
+                    self.D[jj+1: self.j+1, self.t] = np.min([tmp1, tmp2, tmp3], axis = 0)
+                    
                 if direction in ["R","B"]:
                     self.j += 1
                     tt = np.max([self.startFrameT, self.t - self.c + 1])
@@ -170,19 +180,26 @@ class Aligner(QObject):
                     #     # print(f"V is {self.V[:,self.j]} \n U is {self.U[:,k-self.t+self.c-1]} \n dist is {cosine_distance(self.V[:,self.j], self.U[:,k-self.t+self.c-1])}")
                     #     # self.d[self.j, k] = cosine(self.V[:,self.j], self.U[:,k-self.t+self.c-1])**2
                     
-                    self.d[self.j, tt:(self.t+1)] = np.linalg.norm(np.expand_dims(self.V[:,self.j],axis=1) - self.U[:,(tt-self.t+self.c-1):(self.t+1-self.t+self.c-1)], axis = 0)**2
+                    self.d[self.j, tt:(self.t+1)] = np.linalg.norm(np.expand_dims(self.V[:,self.j],axis=1) - self.U[:,(tt-self.t+self.c-1):(self.t+1-self.t+self.c-1)], axis = 0)**self.power
                     
                     # if self.j > 10 and self.t > 10 and np.allclose(self.dTest[self.j, tt:(self.t+1)], self.d[self.j, tt:(self.t+1)] ) is False:
                     #     pdb.set_trace()
+                    # self.D[self.j, tt] = self.D[self.j-1, tt] + self.d[self.j, tt]
+                    # for k in range(tt+1, self.t+1):
+                    #     tmp1 = self.d[self.j, k] + self.D[self.j, k-1]
+                    #     tmp2 = self.w*self.d[self.j, k] + self.D[self.j-1, k-1]
+                    #     tmp3 = self.d[self.j, k] + self.D[self.j-1, k]
+                    #     self.D[self.j, k] = np.min([tmp1, tmp2, tmp3])
+                    #     if not np.isfinite(np.min([tmp1, tmp2, tmp3])).all():
+                    #         logging.error(f'inf in J calc')
+                    #         raise
+
                     self.D[self.j, tt] = self.D[self.j-1, tt] + self.d[self.j, tt]
-                    for k in range(tt+1, self.t+1):
-                        tmp1 = self.d[self.j, k] + self.D[self.j, k-1]
-                        tmp2 = self.w*self.d[self.j, k] + self.D[self.j-1, k-1]
-                        tmp3 = self.d[self.j, k] + self.D[self.j-1, k]
-                        self.D[self.j, k] = np.min([tmp1, tmp2, tmp3])
-                        if not np.isfinite(np.min([tmp1, tmp2, tmp3])).all():
-                            logging.error(f'inf in J calc')
-                            raise
+                
+                    tmp1 = self.d[self.j, tt+1: self.t+1] + self.D[self.j, tt: self.t]
+                    tmp2 = self.w*self.d[self.j, tt+1: self.t+1] + self.D[self.j-1, tt: self.t]
+                    tmp3 = self.d[self.j, tt+1: self.t+1] + self.D[self.j-1, tt+1: self.t+1]
+                    self.D[self.j, tt+1: self.t+1] = np.min([tmp1, tmp2, tmp3], axis = 0)
                             
                 # logging.debug(f"AFTER \n{self.D[:10,:10]}")
                 # pdb.set_trace()
@@ -258,6 +275,8 @@ class Aligner(QObject):
         # i.e if self.j = 300 and frame 305  
     ##get direction ##################################
     ##################################################
+
+        
     def getInc(self):
 
         # TODO tmp1 and tmp2 include infs when t/j > self.c
@@ -310,3 +329,4 @@ class Aligner(QObject):
             return "C"
         else:
             return "B"
+

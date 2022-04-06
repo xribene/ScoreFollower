@@ -1,0 +1,28 @@
+{
+    "sr" : 22050,
+    "n_fft" : 4096,
+    "hop_length" : 512,
+    "window_length" : 1024,
+    "window_type" : "hamming",
+    "mode" : "audio",
+    "input_device_index" : 0,
+    "output_device_index" : 0,
+    "chromaType" : "stft",
+    "n_chroma" : 12,
+    "c" : 200, 
+    "maxRunCount" : 3,
+    "norm" :  2,
+    "magPower" : 1,
+    "metric" : "sqeuclidean",
+    "w_diag" : 0.5,
+
+    "ipOut" : "127.0.0.1",
+    "portOut" : 53000,
+    "portIn" : 53001,
+
+    "plotPeriod" : 25,
+    "audioInput" : "recordedJetee.wav",
+
+    "defaultRmsThr" : 0.0
+
+}
