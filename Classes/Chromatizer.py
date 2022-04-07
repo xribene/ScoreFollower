@@ -28,8 +28,8 @@ class Chromatizer(QObject):
         # TODO win_len - hop_len is not the correct formula here. It only works for 50% overlap
         self.buffer = np.zeros(window_length - hop_length).astype(np.float32)
         self.chromasList = []
-        self.lastChroma = np.ones((n_chroma,1)) / np.sqrt(12)
-        self.zeroChroma = np.ones((n_chroma,1)) / np.sqrt(12)
+        self.lastChroma = np.ones((n_chroma,1)) / np.sqrt(n_chroma)
+        self.zeroChroma = np.zeros((n_chroma,1)) / np.sqrt(n_chroma)
         self.rmsThr = defaultRmsThr
         self.fft_window = librosa.filters.get_window(windowType, window_length, fftbins=True)
         self.fft_freqs = librosa.core.fft_frequencies(sr = self.rate, n_fft = self.n_fft)
@@ -79,9 +79,10 @@ class Chromatizer(QObject):
                 norm_chroma = librosa.util.normalize(raw_chroma, norm=self.norm, axis=0).reshape(-1,1)
                 # logging.debug(f"norm Chroma shape is {norm_chroma.shape}")
                 # chromaFrames.append(norm_chroma)
-                
+                # print(f"chroma {np.transpose(norm_chroma)}")
             else:
                 norm_chroma = self.zeroChroma
+                # print(f"zero chroma {np.transpose(norm_chroma)}")
             # self.chromasList.append(norm_chroma)
             self.chromaBuffer.put_nowait(norm_chroma)
             # self.signalToOnlineDTW.emit(chroma)

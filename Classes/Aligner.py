@@ -14,7 +14,7 @@ class Aligner(QObject):
     signalToMainThread = pyqtSignal(object)
     signalEnd = pyqtSignal()
     def __init__(self, referenceChromas, chromaBuffer, n_chroma = 12, 
-                        c = 200, maxRunCount = 3, power = 1,
+                        c = 200, maxRunCount = 3, power = 2,
                         metric = "sqeuclidean", w = 0.5):
         QObject.__init__(self)
         #### parameters ###############################
@@ -31,8 +31,8 @@ class Aligner(QObject):
         self.power = power
         ##############################################
         # self.scoreChroma = score_chroma
-        self.lastChroma = np.ones((n_chroma,1)) / np.sqrt(12) # norm2
-        self.zeroChroma = np.ones((n_chroma,1)) / np.sqrt(12) # norm2
+        self.lastChroma = np.ones((n_chroma,1)) / np.sqrt(n_chroma) # norm2
+        self.zeroChroma = np.ones((n_chroma,1)) / np.sqrt(n_chroma) # norm2
 
         self.running = False
         self.reachedEnd = False
@@ -154,22 +154,22 @@ class Aligner(QObject):
                     
                     # if np.allclose(self.dTest[jj:(self.j+1), self.t], self.d[jj:(self.j+1), self.t] ) is False:
                     #     pdb.set_trace()
-                    # self.D[jj, self.t] = self.D[jj, self.t-1] + self.d[jj, self.t]
-                    # for k in range(jj+1, self.j+1):
-                    #     tmp1 = self.d[k, self.t] + self.D[k-1, self.t]
-                    #     tmp2 = self.w*self.d[k, self.t] + self.D[k-1, self.t-1]
-                    #     tmp3 = self.d[k, self.t] + self.D[k, self.t-1]
-                    #     self.D[k, self.t] = np.min([tmp1, tmp2, tmp3])
-                    #     if not np.isfinite(np.min([tmp1, tmp2, tmp3])).all():
-                    #         logging.error(f'inf in T calc')
-                    #         raise
-
                     self.D[jj, self.t] = self.D[jj, self.t-1] + self.d[jj, self.t]
+                    for k in range(jj+1, self.j+1):
+                        tmp1 = self.d[k, self.t] + self.D[k-1, self.t]
+                        tmp2 = self.w*self.d[k, self.t] + self.D[k-1, self.t-1]
+                        tmp3 = self.d[k, self.t] + self.D[k, self.t-1]
+                        self.D[k, self.t] = np.min([tmp1, tmp2, tmp3])
+                        if not np.isfinite(np.min([tmp1, tmp2, tmp3])).all():
+                            logging.error(f'inf in T calc')
+                            raise
+
+                    # self.D[jj, self.t] = self.D[jj, self.t-1] + self.d[jj, self.t]
                 
-                    tmp1 = self.d[jj+1: self.j+1, self.t] + self.D[jj: self.j, self.t]
-                    tmp2 = self.w*self.d[jj+1: self.j+1, self.t] + self.D[jj: self.j, self.t-1]
-                    tmp3 = self.d[jj+1: self.j+1, self.t] + self.D[jj+1: self.j+1, self.t-1]
-                    self.D[jj+1: self.j+1, self.t] = np.min([tmp1, tmp2, tmp3], axis = 0)
+                    # tmp1 = self.d[jj+1: self.j+1, self.t] + self.D[jj: self.j, self.t]
+                    # tmp2 = self.w*self.d[jj+1: self.j+1, self.t] + self.D[jj: self.j, self.t-1]
+                    # tmp3 = 1*self.d[jj+1: self.j+1, self.t] + self.D[jj+1: self.j+1, self.t-1]
+                    # self.D[jj+1: self.j+1, self.t] = np.min([tmp1, tmp2, tmp3], axis = 0)
                     
                 if direction in ["R","B"]:
                     self.j += 1
@@ -184,22 +184,22 @@ class Aligner(QObject):
                     
                     # if self.j > 10 and self.t > 10 and np.allclose(self.dTest[self.j, tt:(self.t+1)], self.d[self.j, tt:(self.t+1)] ) is False:
                     #     pdb.set_trace()
-                    # self.D[self.j, tt] = self.D[self.j-1, tt] + self.d[self.j, tt]
-                    # for k in range(tt+1, self.t+1):
-                    #     tmp1 = self.d[self.j, k] + self.D[self.j, k-1]
-                    #     tmp2 = self.w*self.d[self.j, k] + self.D[self.j-1, k-1]
-                    #     tmp3 = self.d[self.j, k] + self.D[self.j-1, k]
-                    #     self.D[self.j, k] = np.min([tmp1, tmp2, tmp3])
-                    #     if not np.isfinite(np.min([tmp1, tmp2, tmp3])).all():
-                    #         logging.error(f'inf in J calc')
-                    #         raise
-
                     self.D[self.j, tt] = self.D[self.j-1, tt] + self.d[self.j, tt]
+                    for k in range(tt+1, self.t+1):
+                        tmp1 = self.d[self.j, k] + self.D[self.j, k-1]
+                        tmp2 = self.w*self.d[self.j, k] + self.D[self.j-1, k-1]
+                        tmp3 = self.d[self.j, k] + self.D[self.j-1, k]
+                        self.D[self.j, k] = np.min([tmp1, tmp2, tmp3])
+                        if not np.isfinite(np.min([tmp1, tmp2, tmp3])).all():
+                            logging.error(f'inf in J calc')
+                            raise
+
+                    # self.D[self.j, tt] = self.D[self.j-1, tt] + self.d[self.j, tt]
                 
-                    tmp1 = self.d[self.j, tt+1: self.t+1] + self.D[self.j, tt: self.t]
-                    tmp2 = self.w*self.d[self.j, tt+1: self.t+1] + self.D[self.j-1, tt: self.t]
-                    tmp3 = self.d[self.j, tt+1: self.t+1] + self.D[self.j-1, tt+1: self.t+1]
-                    self.D[self.j, tt+1: self.t+1] = np.min([tmp1, tmp2, tmp3], axis = 0)
+                    # tmp1 = self.d[self.j, tt+1: self.t+1] + self.D[self.j, tt: self.t]
+                    # tmp2 = self.w*self.d[self.j, tt+1: self.t+1] + self.D[self.j-1, tt: self.t]
+                    # tmp3 = self.d[self.j, tt+1: self.t+1] + self.D[self.j-1, tt+1: self.t+1]
+                    # self.D[self.j, tt+1: self.t+1] = np.min([tmp1, tmp2, tmp3], axis = 0)
                             
                 # logging.debug(f"AFTER \n{self.D[:10,:10]}")
                 # pdb.set_trace()
@@ -314,7 +314,7 @@ class Aligner(QObject):
             self.x = self.t
             self.y = self.j
         
-        if self.t < 10:
+        if self.t < 100:
             return "B"
         if self.runCount > self.maxRunCount:
             if self.previous == "R":
