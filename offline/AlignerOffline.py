@@ -35,7 +35,7 @@ class AlignerOffline():
         self.frameNumScore = self.referenceChromas.shape[0]
         self.frameNum = self.referenceChromas.shape[0]
 
-        self.framenumaudio = self.frameNumScore # * 2 # in matlab code they use self.c
+        self.framenumaudio = self.recordedChromas.shape[0] # * 2 # in matlab code they use self.c
 
         self.pathLenMax = self.frameNumScore + self.framenumaudio
         self.V = np.transpose(self.referenceChromas)
@@ -79,7 +79,7 @@ class AlignerOffline():
 
     def align(self):
 
-        while self.j < self.frameNumScore-1:
+        while self.j < self.frameNumScore-1 and self.t < self.framenumaudio-1:
                 
             if self.needNewFrame == 1: # and not self.inputQueue.empty():
                 newChroma = self.recordedChromas[self.t]
@@ -269,7 +269,8 @@ sectionNameNoPrefix = sectionName.split("_")[1]
 audioFile = Path("/home/xribene/Projects/ScoreFollower/resources/Pieces/Stravinsky/1_SoldiersMarch/testAudio/MultiSpeedRecordingSpeech22k.wav")
 referenceAudioFile = Path("/home/xribene/Projects/ScoreFollower/resources/Pieces/Stravinsky/1_SoldiersMarch/Stravinsky_SoldiersMarch.wav")
 # audioFile = Path("/home/xribene/Projects/ScoreFollower/resources/Pieces/Stravinsky/1_SoldiersMarch/testAudio/Stravinsky_SoldiersMarch22k.wav")
-fmin = None
+referenceMidiFile = Path("/home/xribene/Projects/ScoreFollower/resources/Pieces/Stravinsky/1_SoldiersMarch/Stravinsky_SoldiersMarch.mid")
+fmin = 60
 recordedChromas = getChromas(audioFile, 
                             sr = config.sr,
                             n_fft = config.n_fft, 
@@ -316,6 +317,21 @@ referenceChromas = getChromas(referenceAudioFile,
                             useZeroChromas = False,
                             fmin = fmin
                             )
+referenceChromasMidi = getChromas(referenceMidiFile, 
+                            sr = 2*config.sr,
+                            n_fft = 2*config.n_fft, 
+                            hop_length = 2*config.hop_length,
+                            window_length = 2*config.window_length,
+                            chromaType = "stft",
+                            n_chroma = config.n_chroma,
+                            norm = config.norm,
+                            normAudio = True,
+                            windowType = config.window_type,
+                            chromafb = None,
+                            magPower = config.magPower,
+                            useZeroChromas = False,
+                            fmin = fmin
+                            )
 referenceChromasCqt = getChromas(referenceAudioFile, 
                             sr = 2*config.sr,
                             n_fft = 2*config.n_fft, 
@@ -333,6 +349,7 @@ referenceChromasCqt = getChromas(referenceAudioFile,
                             )
 referenceChromasCqt = np.transpose(referenceChromasCqt)
 recordedChromasCqt = np.transpose(recordedChromasCqt)
+referenceChromasMidi = np.transpose(referenceChromasMidi)
 
 repeats = np.ones((referenceChromas.shape[0]))
 repeats[600:900] = 2
@@ -348,22 +365,28 @@ repeats[a1:a2] = 2
 repeats[b1:b2] = 2
 verts = [a1,a2+(a2-a1),b1+a2-a1, b2 + a2-a1 + b2 - b1]
 referenceChromasCqt = np.repeat(referenceChromasCqt, list(repeats), axis=0)
+
+repeats = np.ones((referenceChromasMidi.shape[0]))
+repeats[a1:a2] = 2
+repeats[b1:b2] = 2
+referenceChromasMidi = np.repeat(referenceChromasMidi, list(repeats), axis=0)
+
 #%%
-aligner = AlignerOffline(referenceChromas, recordedChromas + 0.0*np.random.randn(*recordedChromas.shape),
+aligner = AlignerOffline(referenceChromasMidi, recordedChromas + 0.0*np.random.randn(*recordedChromas.shape),
                                 n_chroma = config.n_chroma, 
                                 c = config.c, 
                                 maxRunCount = config.maxRunCount, 
                                 metric = config.metric,
                                 power = 2,
                                 w = 0.3)
-
-# alignerNew = AlignerNewOffline(referenceChromas, recordedChromas ,
-#                                 n_chroma = config.n_chroma, 
-#                                 c = config.c, 
-#                                 maxRunCount = config.maxRunCount, 
-#                                 metric = config.metric,
-#                                 power = 3,
-#                                 w = 0.5)
+#%%
+alignerNew = AlignerNewOffline(referenceChromas, recordedChromas ,
+                                n_chroma = config.n_chroma, 
+                                c = config.c, 
+                                maxRunCount = config.maxRunCount, 
+                                metric = config.metric,
+                                power = 2,
+                                w = 0.5)
 
 #%%
 aligner.align()
@@ -389,6 +412,7 @@ x = recordedChromas
 xCqt = recordedChromasCqt
 yCqt = referenceChromasCqt
 y = referenceChromas
+yMidi = referenceChromasMidi
 # x = np.transpose(referenceChromas)
 # y = np.transpose(recordedChromas)
 # z = np.load("recordedChromas.npy")
@@ -397,6 +421,7 @@ y = referenceChromas
 path, dtw_score = dtw_path_from_metric(x,y, metric="euclidean")
 pathCqt, dtw_scoreCqt = dtw_path_from_metric(x,yCqt, metric="euclidean")
 pathCqt2, dtw_scoreCqt2 = dtw_path_from_metric(xCqt,yCqt, metric="euclidean")
+pathMidi, dtw_scoreMidi = dtw_path_from_metric(x,yMidi, metric="sqeuclidean")
 
 # 'l2', 'l1', 'manhattan', 'cityblock', 'braycurtis', 'canberra', 'chebyshev', 
 # 'correlation', 'cosine', 'dice', 'hamming', 'jaccard', 'kulsinski',
@@ -407,11 +432,13 @@ pathCqt2, dtw_scoreCqt2 = dtw_path_from_metric(xCqt,yCqt, metric="euclidean")
 print(dtw_score)
 print(dtw_scoreCqt)
 print(dtw_scoreCqt2)
+print(dtw_scoreMidi)
 
 # plt.figure()
 pathArr = np.array(path)
 pathArrCqt = np.array(pathCqt)
 pathArrCqt2 = np.array(pathCqt2)
+pathArrMidi = np.array(pathMidi)
 
 #%%
 plt.figure()
@@ -419,7 +446,7 @@ line1 = plt.scatter(pathArr[:,0], pathArr[:,1], 0.1,  linewidth=1)
 line1Cqt = plt.scatter(pathArrCqt[:,0], pathArrCqt[:,1], 0.1,  linewidth=1)
 line1Cqt2 = plt.scatter(pathArrCqt2[:,0], pathArrCqt2[:,1], 0.1,  linewidth=1)
 line2 = plt.scatter(aligner.pathFront[:aligner.i,0], aligner.pathFront[:aligner.i,1], 0.1, linewidth=2)
-line3 = plt.scatter(alignerNew.pathFront[:alignerNew.i,0], alignerNew.pathFront[:alignerNew.i,1], 0.1, linewidth=2)
+# line3 = plt.scatter(alignerNew.pathFront[:alignerNew.i,0], alignerNew.pathFront[:alignerNew.i,1], 0.1, linewidth=2)
 
 for vert in verts:
     plt.axhline(y=vert)
