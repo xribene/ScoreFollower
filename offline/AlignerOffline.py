@@ -3,16 +3,16 @@ import logging
 from syslog import LOG_WARNING
 import numpy as np
 import queue
-from math import sqrt
+# from math import sqrt
 import time
 import pdb; 
-from utils_offline import cosine_distance
-from scipy.spatial.distance import cosine
+# from utils_offline import cosine_distance
+# from scipy.spatial.distance import cosine
 
 #%%
 class AlignerOffline():
     def __init__(self, referenceChromas, recordedChromas, n_chroma = 12, 
-                        c = 200, maxRunCount = 3, 
+                        c = 200, maxRunCount = 3, power = 2,
                         metric = "sqeuclidean", w = 0.5):
         #### parameters ###############################
         self.c = c #  
@@ -23,7 +23,7 @@ class AlignerOffline():
         self.referenceChromas = referenceChromas
         self.recordedChromas = recordedChromas
         self.w = w
-        self.power = 1
+        self.power = power
         self.j_todo = 0
         self.j_todo_flag = False
         ##############################################
@@ -100,7 +100,7 @@ class AlignerOffline():
                 self.startFrameT = self.t
                 direction = 'B'
 
-            logging.debug(f"J = {self.j}, T = {self.t}")
+            print(f"J = {self.j}, T = {self.t}")
 
             aa = time.time()
             if direction in ["C","B"]:
@@ -161,7 +161,7 @@ class AlignerOffline():
                 #         logging.error(f'inf in J calc')
                 #         raise
                         
-            # logging.debug(f"AFTER \n{self.D[:10,:10]}")
+            # print(f"AFTER \n{self.D[:10,:10]}")
             # pdb.set_trace()
 
             if direction == 'B':
@@ -183,7 +183,7 @@ class AlignerOffline():
 
             self.i += 1
             if self.i > len(self.pathOnline) - 1:
-                logging.debug(f"Path Overflow")
+                print(f"Path Overflow")
                 self.pathOverflow = True
                 break
             self.pathOnline[self.i,:] = [self.x, self.y]
@@ -253,14 +253,7 @@ class AlignerOffline():
 from utils_offline import resource_path, Params, getChromas
 from pathlib import Path
 from matplotlib import pyplot as plt
-# logging.getLogger().setLevel(logging.DEBUG)
-# Uncomment below for terminal log messages
-# logging.basicConfig(level=logging.DEBUG, format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s - %(threadName)s - %(lineno)s: %(message)s', datefmt= '%H:%M:%S')
-
-logger = logging.getLogger('AlignerOffline')
-logger.setLevel(logging.DEBUG)
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s - %(threadName)s - %(lineno)s: %(message)s', datefmt= '%H:%M:%S')
-
+from AlignerNewOffline import AlignerOffline as AlignerNewOffline
 #%%
 config = Params(Path(resource_path("configOffline.json")))
 
@@ -269,12 +262,14 @@ pieceName = "Stravinsky"
 # sectionName = "1_ThemeA"
 sectionName = "1_SoldiersMarch"
 sectionNameNoPrefix = sectionName.split("_")[1]
-referenceChromas = np.load(Path(resource_path(f"../resources/Pieces/{pieceName}/{sectionName}/referenceAudioChromas_{pieceName}_{sectionNameNoPrefix}.npy")))
+# referenceChromas = np.load(Path(resource_path(f"../resources/Pieces/{pieceName}/{sectionName}/referenceAudioChromas_{pieceName}_{sectionNameNoPrefix}.npy")))
 # audioFile = Path(resource_path(f"../resources/Pieces/{pieceName}/{sectionName}/testAudio/recodedJetee22050.wav"))
 # audioFile = Path("/home/xribene/Projects/ScoreFollower/resources/Pieces/Jetee/1_ThemeA/testAudio/recordedJetee22050.wav")
-audioFile = Path("/home/xribene/Projects/ScoreFollower/resources/Pieces/Stravinsky/1_SoldiersMarch/testAudio/SoldiersMarchSpeech22k.wav")
+# audioFile = Path("/home/xribene/Projects/ScoreFollower/resources/Pieces/Stravinsky/1_SoldiersMarch/testAudio/SoldiersMarchSpeech22k.wav")
+audioFile = Path("/home/xribene/Projects/ScoreFollower/resources/Pieces/Stravinsky/1_SoldiersMarch/testAudio/MultiSpeedRecordingSpeech22k.wav")
 referenceAudioFile = Path("/home/xribene/Projects/ScoreFollower/resources/Pieces/Stravinsky/1_SoldiersMarch/Stravinsky_SoldiersMarch.wav")
-
+# audioFile = Path("/home/xribene/Projects/ScoreFollower/resources/Pieces/Stravinsky/1_SoldiersMarch/testAudio/Stravinsky_SoldiersMarch22k.wav")
+fmin = None
 recordedChromas = getChromas(audioFile, 
                             sr = config.sr,
                             n_fft = config.n_fft, 
@@ -287,39 +282,158 @@ recordedChromas = getChromas(audioFile,
                             windowType = config.window_type,
                             chromafb = None,
                             magPower = config.magPower,
-                            useZeroChromas = False
+                            useZeroChromas = False,
+                            fmin = fmin
                             )
-referenceChromas2 = getChromas(referenceAudioFile, 
-                            sr = 2*config.sr,
-                            n_fft = 2*config.n_fft, 
-                            hop_length = 2*config.hop_length,
-                            window_length = 2*config.window_length,
-                            chromaType = config.chromaType,
+recordedChromasCqt = getChromas(audioFile, 
+                            sr = config.sr,
+                            n_fft = config.n_fft, 
+                            hop_length = config.hop_length,
+                            window_length = config.window_length,
+                            chromaType = "cqt",
                             n_chroma = config.n_chroma,
                             norm = config.norm,
                             normAudio = True,
                             windowType = config.window_type,
                             chromafb = None,
                             magPower = config.magPower,
-                            useZeroChromas = False
+                            useZeroChromas = False,
+                            fmin = fmin
                             )
+
+referenceChromas = getChromas(referenceAudioFile, 
+                            sr = 2*config.sr,
+                            n_fft = 2*config.n_fft, 
+                            hop_length = 2*config.hop_length,
+                            window_length = 2*config.window_length,
+                            chromaType = "stft",
+                            n_chroma = config.n_chroma,
+                            norm = config.norm,
+                            normAudio = True,
+                            windowType = config.window_type,
+                            chromafb = None,
+                            magPower = config.magPower,
+                            useZeroChromas = False,
+                            fmin = fmin
+                            )
+referenceChromasCqt = getChromas(referenceAudioFile, 
+                            sr = 2*config.sr,
+                            n_fft = 2*config.n_fft, 
+                            hop_length = 2*config.hop_length,
+                            window_length = 2*config.window_length,
+                            chromaType = "cqt",
+                            n_chroma = config.n_chroma,
+                            norm = config.norm,
+                            normAudio = True,
+                            windowType = config.window_type,
+                            chromafb = None,
+                            magPower = config.magPower,
+                            useZeroChromas = False,
+                            fmin = fmin
+                            )
+referenceChromasCqt = np.transpose(referenceChromasCqt)
+recordedChromasCqt = np.transpose(recordedChromasCqt)
+
+repeats = np.ones((referenceChromas.shape[0]))
+repeats[600:900] = 2
+repeats[3000:3500] = 2
+referenceChromas = np.repeat(referenceChromas, list(repeats), axis=0)
+
+repeats = np.ones((referenceChromasCqt.shape[0]))
+a1 = 600
+a2 = 900
+b1 = 3000
+b2 = 3500
+repeats[a1:a2] = 2
+repeats[b1:b2] = 2
+verts = [a1,a2+(a2-a1),b1+a2-a1, b2 + a2-a1 + b2 - b1]
+referenceChromasCqt = np.repeat(referenceChromasCqt, list(repeats), axis=0)
 #%%
-aligner = AlignerOffline(referenceChromas2, recordedChromas,
+aligner = AlignerOffline(referenceChromas, recordedChromas + 0.0*np.random.randn(*recordedChromas.shape),
                                 n_chroma = config.n_chroma, 
                                 c = config.c, 
                                 maxRunCount = config.maxRunCount, 
                                 metric = config.metric,
-                                w = config.w_diag)
+                                power = 2,
+                                w = 0.3)
+
+# alignerNew = AlignerNewOffline(referenceChromas, recordedChromas ,
+#                                 n_chroma = config.n_chroma, 
+#                                 c = config.c, 
+#                                 maxRunCount = config.maxRunCount, 
+#                                 metric = config.metric,
+#                                 power = 3,
+#                                 w = 0.5)
 
 #%%
 aligner.align()
+#%%
+alignerNew.align()
 
 #%%
 
-logging.debug(f"durs J is {np.mean(aligner.dursJ)} durs T is {np.mean(aligner.dursT)}")
-logging.debug(f"distance is {aligner.D[aligner.j ,aligner.t]}")
+print(f"durs J is {np.mean(aligner.dursJ)} durs T is {np.mean(aligner.dursT)}")
+print(f"distance is {aligner.D[aligner.j ,aligner.t]}")
+#%%
+print(f"durs J is {np.mean(alignerNew.dursJ)} durs T is {np.mean(alignerNew.dursT)}")
+print(f"distanceNew is {alignerNew.D[alignerNew.j ,alignerNew.t-1]}")
+    
+#%%
+from tslearn.metrics import dtw, dtw_path, dtw_path_from_metric
+from scipy.spatial.distance import cdist
+import scipy.io as sio
+# dtw_score = dtw(x, y)
+
+#%%
+x = recordedChromas
+xCqt = recordedChromasCqt
+yCqt = referenceChromasCqt
+y = referenceChromas
+# x = np.transpose(referenceChromas)
+# y = np.transpose(recordedChromas)
+# z = np.load("recordedChromas.npy")
+# dtw_path(ts1, ts2)[1] == np.sqrt(dtw_path_from_metric(ts1, ts2, metric="sqeuclidean")[1])
+
+path, dtw_score = dtw_path_from_metric(x,y, metric="euclidean")
+pathCqt, dtw_scoreCqt = dtw_path_from_metric(x,yCqt, metric="euclidean")
+pathCqt2, dtw_scoreCqt2 = dtw_path_from_metric(xCqt,yCqt, metric="euclidean")
+
+# 'l2', 'l1', 'manhattan', 'cityblock', 'braycurtis', 'canberra', 'chebyshev', 
+# 'correlation', 'cosine', 'dice', 'hamming', 'jaccard', 'kulsinski',
+#  'mahalanobis', 'matching', 'minkowski', 'rogerstanimoto', 'russellrao',
+#   'seuclidean', 'sokalmichener', 'sokalsneath', 'sqeuclidean', 'yule', 
+#   'wminkowski', 'nan_euclidean', 'haversine'
+# path, dtw_score = dtw_path(x,y)
+print(dtw_score)
+print(dtw_scoreCqt)
+print(dtw_scoreCqt2)
+
+# plt.figure()
+pathArr = np.array(path)
+pathArrCqt = np.array(pathCqt)
+pathArrCqt2 = np.array(pathCqt2)
+
 #%%
 plt.figure()
-plt.scatter(aligner.pathFront[:aligner.i,0], aligner.pathFront[:aligner.i,1], 0.1)
+line1 = plt.scatter(pathArr[:,0], pathArr[:,1], 0.1,  linewidth=1)
+line1Cqt = plt.scatter(pathArrCqt[:,0], pathArrCqt[:,1], 0.1,  linewidth=1)
+line1Cqt2 = plt.scatter(pathArrCqt2[:,0], pathArrCqt2[:,1], 0.1,  linewidth=1)
+line2 = plt.scatter(aligner.pathFront[:aligner.i,0], aligner.pathFront[:aligner.i,1], 0.1, linewidth=2)
+line3 = plt.scatter(alignerNew.pathFront[:alignerNew.i,0], alignerNew.pathFront[:alignerNew.i,1], 0.1, linewidth=2)
+
+for vert in verts:
+    plt.axhline(y=vert)
+plt.legend((line1, line1Cqt, line2, line3), ('offline', 'offlineCqt', 'offlineCqt2','online'), loc='lower right', shadow=True)
+
+# plt.plot(pathArr[:,0], pathArr[:,1])
+# plt.show()
+
+# plt.figure()
+# line2 = plt.scatter(aligner.pathFront[:aligner.i,0], aligner.pathFront[:aligner.i,1], 0.1, linewidth=2)
+# line3 = plt.scatter(alignerNew.pathFront[:alignerNew.i,0], alignerNew.pathFront[:alignerNew.i,1], 0.1, linewidth=2)
+
+# plt.legend((line1, line2, line3), ('offline', 'online','onlineNew'), loc='lower right', shadow=True)
+
 
 plt.show()
+# %%

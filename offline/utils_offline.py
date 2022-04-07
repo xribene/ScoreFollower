@@ -99,7 +99,7 @@ def getCuesDict(filePath, sr = 44100, hop_length = 1024):
 
 def getChromas(filePath, sr = 44100, n_fft = 8192, window_length = 2048,
                         hop_length = 1024, chromaType = "stft", n_chroma = 12,
-                        norm=2, normAudio = False, windowType='hamming',
+                        norm=2, normAudio = False, windowType='hamming', fmin = None,
                         chromafb = None, magPower = 1, useZeroChromas = True):
     # TODO if the folders exist, don't generate chromas again.
     ext = str(filePath.parts[-1]).split(".")[-1]
@@ -158,7 +158,10 @@ def getChromas(filePath, sr = 44100, n_fft = 8192, window_length = 2048,
         if normAudio is True:
             wav = wav/np.sqrt(np.mean(wav**2))
         if chromaType == "cqt":
-            chromagram = librosa.feature.chroma_cqt(y=wav, sr=sr, hop_length=hop_length)
+            chromagram = librosa.feature.chroma_cqt(y=wav, sr=sr, 
+                                            hop_length=hop_length,
+                                            norm = norm,
+                                            fmin = fmin)
         elif chromaType == "stft":
             # chromagram = librosa.feature.chroma_stft(y=wav, sr=sr, n_fft = n_fft, 
             #                                             hop_length=hop_length)
@@ -171,6 +174,11 @@ def getChromas(filePath, sr = 44100, n_fft = 8192, window_length = 2048,
             tuning = 0.0 #librosa.core.pitch.estimate_tuning(y=wav, sr=sr, bins_per_octave=n_chroma)
             if chromafb is None:
                 chromafb = librosa.filters.chroma(sr, n_fft, tuning=tuning, n_chroma=n_chroma)
+
+            if fmin:
+                fft_freqs = librosa.core.fft_frequencies(sr = sr, n_fft = n_fft)
+                lowestBin = np.where(fft_freqs <= fmin)[0][-1]
+                chromafb[:,:lowestBin] = 0
 
             stride = hop_length
             frame_len = window_length
