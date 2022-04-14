@@ -139,6 +139,7 @@ class ScoreFollower(QWidget):
                                 c = self.config.c, 
                                 maxRunCount = self.config.maxRunCount, 
                                 metric = self.config.metric,
+                                power = self.config.power,
                                 w = self.config.w_diag)
         self.aligner.moveToThread(self.alignerThread)
         self.alignerThread.start()

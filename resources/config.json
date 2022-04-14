@@ -14,7 +14,8 @@
     "norm" :  2,
     "magPower" : 1,
     "metric" : "sqeuclidean",
-    "w_diag" : 0.25,
+    "w_diag" : 0.3,
+    "power" : 2,
 
     "ipOut" : "127.0.0.1",
     "portOut" : 53000,
