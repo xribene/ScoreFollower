@@ -7,17 +7,16 @@ import numpy as np
 """
 To generate chromas and cueList for the score AAA
 Use this function in the command line like this 
-    python extractCuesAndChromas.py --path /resources/Pieces/AAA
+    python extractCuesAndChromas.py --path resources/Pieces/{PieceName}/{SectionName}
 
-A directory called AAA should be exist in /resources/Pieces
 and should contain :
-    1) ONE wav file named AAA.wav - encoded as int16
-    2) ONE xml file named AAA.xml - it should include a cues part called "CUES"
-    3) ONE mid file name AAA.mid
+    1) ONE wav file named {PieceName}_{SectionName}.wav - encoded as int16
+    2) ONE xml file named {PieceName}_{SectionName}.xml - it should include a cues part called "CUES"
+    3) ONE mid file name {PieceName}_{SectionName}.mid
 
 If any of the conditions aren't true, then it raises and error. 
 
-The parameters of the chroma extraction are in /resources/config.json
+The parameters of the chroma extraction are in resources/config.json
 
 # TODO in the future score will have its own config file.
 # TODO The main.py GUI, should load the correct config file according to the score selected
@@ -27,7 +26,8 @@ The parameters of the chroma extraction are in /resources/config.json
 parser = argparse.ArgumentParser()
 parser.add_argument('--path', type=str, nargs='+',
                     help='A path that contains the xml score and the wav audio file')
-
+parser.add_argument('--fmin', type=int,  default=0,
+                    help='Cut freq of low pass filter')
 args = parser.parse_args()
 path = Path(args.path[0])
 #%%
@@ -39,6 +39,9 @@ midFile = returnCorrectFile(path, "mid")
 xmlFile = returnCorrectFile(path, "xml")
 
 config = Params("resources/config.json")
+
+if args.fmin == 0:
+    args.fmin = None
 
 cuesDict = getCuesDict(filePath = xmlFile, 
                                     sr = config.sr, 
@@ -54,7 +57,9 @@ referenceChromas = getChromas(wavFile,
                                 normAudio = True,
                                 windowType = config.window_type,
                                 chromafb = None,
-                                magPower = config.magPower
+                                magPower = config.magPower,
+                                fmin = args.fmin,
+                                useZeroChromas = bool(config.useZeroChromas)
                                 )
 
 chromasFile = path/f"referenceAudioChromas_{pieceName}_{sectionName}.npy"

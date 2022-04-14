@@ -540,6 +540,7 @@ class ScoreFollower(QWidget):
     @pyqtSlot(str)
     def processNewBarInputOSC(self, bar):
         logging.debug(f'User OSC set bar {bar}')
+        self.alignGroup.barDisp.setText(bar)
         frame = self.bar2frameDict[int(bar)]
         self.aligner.j_todo = frame
         self.aligner.j_todo_flag = True
@@ -547,6 +548,7 @@ class ScoreFollower(QWidget):
     @pyqtSlot(str)
     def processNewCueInputOSC(self, cue):
         logging.debug(f'User OSC set cue {cue}')  
+        self.alignGroup.cueDisp.setText(cue)
         frame = self.cue2frameDict[int(cue)]
         self.aligner.j_todo = frame
         self.aligner.j_todo_flag = True

@@ -177,6 +177,7 @@ def getChromas(filePath, sr = 44100, n_fft = 8192, window_length = 2048,
 
             if fmin:
                 fft_freqs = librosa.core.fft_frequencies(sr = sr, n_fft = n_fft)
+                # print(fmin)
                 lowestBin = np.where(fft_freqs <= fmin)[0][-1]
                 chromafb[:,:lowestBin] = 0
 

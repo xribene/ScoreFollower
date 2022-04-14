@@ -14,16 +14,18 @@
     "norm" :  2,
     "magPower" : 1,
     "metric" : "sqeuclidean",
-    "w_diag" : 0.3,
+    "w_diag" : 0.2,
     "power" : 2,
 
     "ipOut" : "127.0.0.1",
     "portOut" : 53000,
     "portIn" : 53001,
 
-    "plotPeriod" : 25,
+    "plotPeriod" : 10,
     "audioInput" : "recordedJetee.wav",
 
-    "defaultRmsThr" : 0.0
+    "defaultRmsThr" : 0.0,
+    
+    "useZeroChromas" : 1
 
 }

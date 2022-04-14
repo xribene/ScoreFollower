@@ -227,7 +227,7 @@ class AlignBox(QGroupBox):
         self.plot.addItem(self.scatter)
 
         label_style = {"color": "#bb3e03", "font-size": "14pt"}
-        self.plot.setLabel("bottom", "Audio time(s)", **label_style)
+        self.plot.setLabel("bottom", "Audio time (sec)", **label_style)
         self.plot.setLabel("left", "Score Bars", **label_style)
         self.plot.setLabel("right", "Score Cues", **label_style)
         # axis_style = {
