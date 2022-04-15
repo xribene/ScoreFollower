@@ -4,10 +4,13 @@
 
 - **Make sure TouchDesigner is not open**
     - This is a bug from ScoreFollower's side. It can be fixed but it requires a lot of digging
-- Open terminal
-- Activate the conda environment
+- Open terminal and activate the conda environment
     - conda activate gids
-- Navigate to *ScoreFollower* directory and run the main.py file
+- Navigate to *ScoreFollower* directory 
+- Make sure you have the latest code
+    - git checkout master  (to ensure that you are on the master branch and not the development one)
+    - git pull 
+- Open ScoreFollower
     - python main.py
 - **Now you can open TouchDesigner**
 
