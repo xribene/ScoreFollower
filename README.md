@@ -2,13 +2,14 @@
 
 ## How to use
 
-- Make sure TouchDesigner is not open
+- **Make sure TouchDesigner is not open**
+    - This is a bug from ScoreFollower's side. It can be fixed but it requires a lot of digging
 - Open terminal
 - Activate the conda environment
     - conda activate gids
 - Navigate to *ScoreFollower* directory and run the main.py file
     - python main.py
-- Now you can open TouchDesigner
+- **Now you can open TouchDesigner**
 
 --- 
 
