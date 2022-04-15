@@ -1,64 +1,57 @@
 # ScoreFollower
 
-## Preprocessing / Offline
+## How to use
 
-- TLDR;
-    - Wrote a the function that exctracts the reference chroma vectors from either a xml score or a wav file. 
+- Make sure TouchDesigner is not open
+- Open terminal
+- Activate the conda environment
+    - conda activate gids
+- Navigate to *ScoreFollower* directory and run the main.py file
+    - python main.py
+- Now you can open TouchDesigner
 
-- The function **getReferenceChromas** exists in the script utils.py:
-    ```python
-    def getReferenceChromas(filePath, sr = 44100, n_fft = 4096, 
-                            hop_length = 2048, chromaType = "cqt"):
-    ```
-- We can choose the resolution of the chroma vectors (n_fft, hop_length) as well as the spectrogram type ("cqt" or "stft")
-- Experiment
-    - Offline global DTW alignment between score chroma vectors and wav chroma vectors
-        - score vs stft --> 78
-        - score vs cqt  --> 63
-        - ![score_vs_stft](src/main/python/offline/scoreVsStft_75.png)
-        - ![score_vs_cqt](src/main/python/offline/scoreVsCqt_60.png)
-    - Chroma vectors extracted from cqt spectrum match better to the chromas from the xml score.
+## OSC Protocol
 
+- ScoreFollower sends messages to port 54000 and receives/listens to port 54001
+- TouchDesigner should listen to port 54001 and send to 54000
+- QLab communicates *only* with TouchDesigner using ports 53000/53001
 
-## Online
+### ScoreFollower output signals
+- /bar/{barNumber}
+    - GuiClasses.py - function sendBarTrigger - line 346
+- /workspace/{workspaceID}/playhead/{cueName}
+    - GuiClasses.py - function sendCueTrigger - line 342
+    - I kept the *workspace* and *playhead* tags only in case you want to demonstrate the connection with QLab
+- /start
+    - It is sent when the user starts the ScoreFollower either by manually hitting the button in the GUI or by sending a */reponse/start* message from TouchDesigner
+- /stop
+    - Similar as /start
 
-- TLDR; 
-    - Implemented the basic 3 modules
-        - Audio Recorder (100%)
-        - Chroma Extractor (100%)
-        - Online DTW (50%)
-    - Wrote a basic real time app that uses these modules. 
+### ScoreFollower input signals
+All the osc signals received from TouchDesigner should start with */response*. This doens't make a lot of sense, but we ll change it later. I think it would be usefull to have a different tag for TouchDesigner's output messages depending on if they are custom or some automated ones that TD sends anyway (I don't know if that happens at all).
 
-- The **Audio Recorder** module exists in the script AudioRecorder.py:
-    - Accepts input from a specified audio stream. This can be either the microphone, or a wav file (for testing only)
-    - Maintains an internal buffer to implement overlap between audio windows. 
-    - Sends each frame to the **Chroma Extractor** module.
-
-- The **Chroma Extractor** module exists in the script Chromatizer.py:
-    - Accepts an audio frame from the **Audio Recorder** and converts calculates the chroma vector for this frame. 
-    - It sends the chroma vector to the **Online DTW** module
-    - > TODO : "cqt" mode doesn't work for the real time app. 
-
-- The **Online DTW** module exists in the script OnlineDTW.py:
-    - Implemented most of the algorithm. 
-    - > TODO : There are still some minor bugs
-    - > TODO : Add support for manual overwrite of the alignment position
-- > TODO : Add a basic **OSC** module
-- > TODO : Run a first test by next week. Make some dummy cues (i.e to indicate the beggining of each measure). Randomly Start/Pause the audio file to see how the alignment works.
-
-
-## App Distribution/Packaging 
-
-- TLDR; 
-    - We have excecutable files for each OS (Windows, Mac, Linux)
-- Refactored the project's code in order to use a tool called **fbs** 
-- **fbs** help us create cross plattform excecutable files for **PyQt5** based python apps
-- Disadvantage : Exe files can become very large (i.e >1GB), depending on what python libraries we need
+- /response/setBar/{barNumber}
+    - You should automatically see the GUI update the bar number box (the cue number box won't be updated untill the alignment reaches the next cue)
+- /response/setCue/{cueName}
+    - Similar
+- /response/start
+    - Starts the ScoreFollower. In the case it's already started, then this signal is ignored.
+- /response/stop
+    - Similar
+- /response/startStop
+    - Set the playing status to the opposite of the current one.
+- /response/reset
+    - Resets and stops the ScoreFollower. You ll have to send a */response/start* message to start again
+- /response/nextSection
+    - Stops the ScoreFollower and loads the next section of the same piece
+    - The succession of the sections is defined in the names of their directory. For example, inside the Jetee folder currently there is *1_ThemeA*. If you want to add the next section, the folders name should be in the form of *2_{sectioName}*
+- /response/nextPiece
+    - Stops the ScoreFollower and loads the next piece.
+    - Haven't defined a succession scheme yet. In the future I ll change this so you can send the exact piece's name in the osc command.
 
 ## Requirements
-- python=3.6
-- PyQt = 5.12
+- python > 3.6
+- PyQt > 5.12
 - music21
 - librosa
 - scipy
-- fbs
