@@ -308,12 +308,13 @@ class AlignBox(QGroupBox):
 class QLabInterface(QObject):
     signalNewBarOsc = pyqtSignal(str)
     signalNewCueOsc = pyqtSignal(str)
-    def __init__(self, config, oscClient, oscListener, qLabGroup):
+    def __init__(self, config, oscClient, oscListener, qLabGroup, main):
         super(QLabInterface, self).__init__()
 
         # initializations
         self.setObjectName("QLabInterface")
         self.config = config
+        self.main = main
         self.oscClient = oscClient
         self.oscListener = oscListener
         self.qLabGroup = qLabGroup
@@ -456,17 +457,22 @@ class QLabInterface(QObject):
             self.updateListenerText("qLab", addressParts, args)
     
     def touchResponseCallbackRouter(self, load):
+        # TODO # ! There is no QLab interface anymore. 
+        # TODO Move the callbackRouters in main.py
+        # TODO because there's gonna be a ton of extra signals/slots
+        # TODO for each new command
+        # ! or just have the parent/main.py as an input here
         address = load[0]
         args = load[1]
         addressParts = address.split("/")[1:]
-
+        
         # first part should be always "reply"
-        # print(addressParts)
+        print(addressParts)
         if addressParts[0] != "response":
             logging.error(f"TouchResponseCallback got {address} and args {args}")
             raise # TODO not a good idea to raise like this
         
-        if len(addressParts) >= 3:
+        if len(addressParts) >= 2:
             if addressParts[1] == "setBar":
                 newBar = addressParts[2]
                 self.signalNewBarOsc.emit(newBar)
@@ -476,7 +482,60 @@ class QLabInterface(QObject):
                 newCue = addressParts[2]
                 self.signalNewCueOsc.emit(newCue)
                 logging.debug(f"Setting cue to {addressParts[2]}")
-
+            
+            elif addressParts[1] == "start":
+                logging.debug(f"Received /start command from TD")
+                self.main.startRecording()
+            elif addressParts[1] == "stop":
+                logging.debug(f"Received /stop command from TD")
+                self.main.stopRecording()
+            elif addressParts[1] == "startStop":
+                logging.debug(f"Received /starSTop command from TD")
+                self.main.startStopRecording()
+            elif addressParts[1] == "reset":
+                logging.debug(f"Received /reset command from TD")
+                self.main.reset()
+            elif addressParts[1] == "nextSection":
+                logging.debug(f"Received /nextSection command from TD")
+                currentInd = self.main.sectionNames.index(self.main.sectionName)
+                if currentInd < len(self.main.sectionNames) - 1:
+                    self.main.sectionName = self.main.sectionNames[currentInd + 1]
+                    self.main.scoreGroup.dropdownSection.setCurrentIndex(currentInd)
+            elif addressParts[1] == "prevSection":
+                logging.debug(f"Received /prevSection command from TD")
+                currentInd = self.main.sectionNames.index(self.main.sectionName)
+                if currentInd > 0:
+                    self.main.stopRecording()
+                    self.main.sectionName = self.main.sectionNames[currentInd - 1]
+                    self.main.scoreGroup.dropdownSection.setCurrentIndex(currentInd)
+            elif addressParts[1] == "nextPiece":
+                logging.debug(f"Received /nextPiece command from TD")
+                currentInd = self.main.pieceNames.index(self.main.pieceName)
+                print(f"currentInd {currentInd} and pieceNames {self.main.pieceNames}")
+                if currentInd < len(self.main.pieceNames) - 1:
+                    print(f"Setting piece to {self.main.pieceNames[currentInd + 1]}")
+                    self.main.stopRecording()
+                    self.main.pieceName = self.main.pieceNames[currentInd + 1]
+                    self.main.scoreGroup.dropdownPiece.setCurrentIndex(currentInd + 1)
+            elif addressParts[1] == "prevPiece":
+                logging.debug(f"Received /prevPiece command from TD")
+                currentInd = self.main.pieceNames.index(self.main.pieceName)
+                print(f"currentInd {currentInd} and pieceNames {self.main.pieceNames}")
+                if currentInd > 0:
+                    print(f"Setting piece to {self.main.pieceNames[currentInd - 1]}")
+                    self.main.stopRecording()
+                    self.main.pieceName = self.main.pieceNames[currentInd - 1]
+                    self.main.scoreGroup.dropdownPiece.setCurrentIndex(currentInd - 1)
+            elif addressParts[1] == "setPiece":
+                logging.debug(f"Received {addressParts} command from TD")
+                try:
+                    newInd = self.main.pieceNames.index(addressParts[2])
+                    self.main.stopRecording()
+                    self.main.pieceName = self.main.pieceNames[newInd]
+                    self.main.scoreGroup.dropdownPiece.setCurrentIndex(newInd)
+                except:
+                    logging.error(f"Could not find {addressParts[2]} in {self.main.pieceNames}")
+                    
         self.updateListenerText("touchDesigner", addressParts, args)
 
     def unknownResponseCallbackRouter(self, load):

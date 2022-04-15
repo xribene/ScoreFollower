@@ -177,11 +177,11 @@ class ScoreFollower(QWidget):
 
     def updatePieceItems(self):
         print("in UpdatePieceItems")
-        scoreNames =  [f.parts[-1] for f in Path(resource_path(f"resources/Pieces")).iterdir() if f.is_dir()]
+        self.pieceNames =  [f.parts[-1] for f in Path(resource_path(f"resources/Pieces")).iterdir() if f.is_dir()]
         self.pieceName = "Jetee"  # scoreNames[0]
         self.scoreGroup.dropdownPiece.blockSignals(True)
         self.scoreGroup.dropdownPiece.clear()
-        self.scoreGroup.dropdownPiece.addItems(scoreNames)
+        self.scoreGroup.dropdownPiece.addItems(self.pieceNames)
         self.scoreGroup.dropdownPiece.setCurrentIndex(-1)
         self.scoreGroup.dropdownPiece.blockSignals(False)
         self.scoreGroup.dropdownPiece.setCurrentIndex(self.scoreGroup.dropdownPiece.findText(self.pieceName)) # TODO maybe allow to send signal here
@@ -194,13 +194,13 @@ class ScoreFollower(QWidget):
         
     def updateSectionItems(self):
         print(f"in updateSectionItems")
-        sectionNames =  [f.parts[-1] for f in Path(resource_path(f"resources/Pieces/{self.pieceName}")).iterdir() if f.is_dir()]
-
-        self.sectionName = sectionNames[0]
+        self.sectionNames =  [f.parts[-1] for f in Path(resource_path(f"resources/Pieces/{self.pieceName}")).iterdir() if f.is_dir()]
+        self.sectionNames.sort(key = lambda x: int(x.split("_")[0]))
+        self.sectionName = self.sectionNames[0]
         print(f"section name is {self.sectionName}")
         self.scoreGroup.dropdownSection.blockSignals(True)
         self.scoreGroup.dropdownSection.clear()
-        self.scoreGroup.dropdownSection.addItems(sectionNames)
+        self.scoreGroup.dropdownSection.addItems(self.sectionNames)
         self.scoreGroup.dropdownSection.setCurrentIndex(-1)
         self.scoreGroup.dropdownSection.blockSignals(False)
         print(f"before")
@@ -425,7 +425,9 @@ class ScoreFollower(QWidget):
         #                         w = self.config.w_diag)
         # self.aligner.moveToThread(self.alignerThread)
 
-        self.qLabInterface = QLabInterface(self.config, self.oscClient, self.oscClient, self.qLabGroup)
+        self.qLabInterface = QLabInterface(self.config, self.oscClient, 
+                                            self.oscClient, self.qLabGroup, 
+                                            main = self)
 
         self.audioThread.start()
         self.chromaThread.start()
@@ -592,6 +594,24 @@ class ScoreFollower(QWidget):
             self.aligner.recording = True
             self.toolbar.playPause.setIcon(QtGui.QIcon(resource_path("resources/svg/pause.svg")))
         logging.debug(f"set aligner.recording to {self.aligner.recording}")
+
+    @pyqtSlot()
+    def startRecording(self):
+        if self.audioRecorder.stopped is True:
+            self.audioRecorder.startStopStream()
+            self.qLabInterface.sendStartTrigger()
+            self.aligner.recording = True
+            self.toolbar.playPause.setIcon(QtGui.QIcon(resource_path("resources/svg/pause.svg")))
+
+            logging.debug(f"set aligner.recording to {self.aligner.recording}")
+    @pyqtSlot()
+    def stopRecording(self):
+        if self.audioRecorder.stopped is False:
+            self.audioRecorder.startStopStream()
+            self.qLabInterface.sendStopTrigger()
+            self.aligner.recording = False
+            self.toolbar.playPause.setIcon(QtGui.QIcon(resource_path("resources/svg/rec.svg")))
+            logging.debug(f"set aligner.recording to {self.aligner.recording}")
 
     @pyqtSlot(object)
     def updateAlignment(self, args):
