@@ -99,8 +99,8 @@ def getCuesDict(filePath, sr = 44100, hop_length = 1024):
 
 def getChromas(filePath, sr = 44100, n_fft = 8192, window_length = 2048,
                         hop_length = 1024, chromaType = "stft", n_chroma = 12,
-                        norm=2, normAudio = False, windowType='hamming',
-                        chromafb = None, magPower = 1):
+                        norm=2, normAudio = False, windowType='hamming', fmin = None,
+                        chromafb = None, magPower = 1, useZeroChromas = True):
     # TODO if the folders exist, don't generate chromas again.
     ext = str(filePath.parts[-1]).split(".")[-1]
     # logging.info(f'{ext}')
@@ -158,7 +158,10 @@ def getChromas(filePath, sr = 44100, n_fft = 8192, window_length = 2048,
         if normAudio is True:
             wav = wav/np.sqrt(np.mean(wav**2))
         if chromaType == "cqt":
-            chromagram = librosa.feature.chroma_cqt(y=wav, sr=sr, hop_length=hop_length)
+            chromagram = librosa.feature.chroma_cqt(y=wav, sr=sr, 
+                                            hop_length=hop_length,
+                                            norm = norm,
+                                            fmin = fmin)
         elif chromaType == "stft":
             # chromagram = librosa.feature.chroma_stft(y=wav, sr=sr, n_fft = n_fft, 
             #                                             hop_length=hop_length)
@@ -172,6 +175,12 @@ def getChromas(filePath, sr = 44100, n_fft = 8192, window_length = 2048,
             if chromafb is None:
                 chromafb = librosa.filters.chroma(sr, n_fft, tuning=tuning, n_chroma=n_chroma)
 
+            if fmin:
+                fft_freqs = librosa.core.fft_frequencies(sr = sr, n_fft = n_fft)
+                # print(fmin)
+                lowestBin = np.where(fft_freqs <= fmin)[0][-1]
+                chromafb[:,:lowestBin] = 0
+
             stride = hop_length
             frame_len = window_length
             # y_frames = librosa.util.frame(wav, frame_length=n_fft, hop_length=hop_length)
@@ -179,9 +188,14 @@ def getChromas(filePath, sr = 44100, n_fft = 8192, window_length = 2048,
             ## What I think is right, and also matches with matlab
             while i*stride+frame_len < wav.shape[-1]:
                 chunk = wav[i*stride:i*stride+frame_len]
+                if not np.any(chunk):
+                    if useZeroChromas:
+                        chromaVector = np.zeros(n_chroma)
+                    else:
+                        chromaVector = librosa.util.normalize(np.ones(n_chroma) / 12, norm=norm, axis=0)
                 # norm_chroma = librosa.util.normalize(raw_chroma, norm=norm, axis=0)
-                # 
-                chromaVector = getChromaFrame(chunk = chunk, chromafb = chromafb, fft_window = fft_window, 
+                else:
+                    chromaVector = getChromaFrame(chunk = chunk, chromafb = chromafb, fft_window = fft_window, 
                                                 n_fft = n_fft ,norm = norm, magPower = magPower)
                 chromaFrames.append(chromaVector)
                 i += 1
@@ -240,16 +254,33 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 def returnCorrectFile(path, ext):
-    pieceName = path.parts[-1]
+    pieceName = path.parts[-2]
+    sectionName = "".join(path.parts[-1].split("_")[1:])
     files = [f for f in path.iterdir() if f.is_file()]
     listOfFiles = [f for f in files if f.suffix == f'.{ext}']
     if (len(listOfFiles) == 0):
         print(f"No {ext} files detected in {path}")
         raise
     elif (len(listOfFiles) > 1):
-        print(f"Multiple {ext} files found in {path}, expected to find only {pieceName}.{ext}")
+        print(f"Multiple {ext} files found in {path}, expected to find only {pieceName}_{sectionName}.{ext}")
         raise
     elif (len(listOfFiles) == 1):
-        assert (path/f"{pieceName}.{ext}").is_file(), f"I was expected to find {pieceName}.{ext} in {path}"
+        assert (path/f"{pieceName}_{sectionName}.{ext}").is_file(), f"I was expected to find {pieceName}_{sectionName}.{ext} in {path}"
         correctFile = listOfFiles[0]
     return correctFile
+
+
+def cosine_distance(a, b):
+    if a.shape != b.shape:
+        raise RuntimeError("array {} shape not match {}".format(a.shape, b.shape))
+    if a.ndim==1:
+        a_norm = np.linalg.norm(a)
+        b_norm = np.linalg.norm(b)
+    elif a.ndim==2:
+        a_norm = np.linalg.norm(a, axis=1, keepdims=True)
+        b_norm = np.linalg.norm(b, axis=1, keepdims=True)
+    else:
+        raise RuntimeError("array dimensions {} not right".format(a.ndim))
+    similiarity = np.dot(a, b.T)/(a_norm * b_norm) 
+    dist = 1. - similiarity
+    return dist

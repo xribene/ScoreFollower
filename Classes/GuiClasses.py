@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (QComboBox,  QPushButton,
         QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
         QTextEdit,  QVBoxLayout, QLCDNumber,QLabel, QHBoxLayout, QTextEdit, QGridLayout)
 
-from PyQt5.QtCore import (QObject, pyqtSlot, QThread, Qt)
+from PyQt5.QtCore import (QObject, pyqtSlot, pyqtSignal, QThread, Qt)
 from pyqtgraph import plot
 import pyqtgraph as pg
 
@@ -13,14 +13,8 @@ import logging
 
 import numpy as np
 
-class QComboBoxBlocking(QComboBox):
-    def setCurrentIndex(self, ix):
-        self.blockSignals(True)
-        QComboBox.setCurrentText(self, ix)
-        self.blockSignals(False)
-
 class QLabBox(QGroupBox):
-    def __init__(self, appctxt, parent):
+    def __init__(self, config, parent):
         super(QLabBox, self).__init__()
         # Set the logger
         # logTextBox = QTextEditLogger(self)
@@ -35,15 +29,11 @@ class QLabBox(QGroupBox):
         
         self.setObjectName("QLabBox")
         self.setTitle("&QLab - Disconnected")
-        self.setStyleSheet('#QLabBox:title {color: rgb(0,0,0);background-color: rgb(200, 0, 0);}')
+        self.setStyleSheet('#QLabBox:title {color: #001219;background-color: #ae2012;}')
         self.setMinimumSize(1000,300)
-        self.appctxt = appctxt
+        self.config = config
         self.layout = QHBoxLayout(self)
 
-
-        # self.status = QStatusBar(self)
-        # self.status.showMessage("Disconnected")
-        # self.status.setStyleSheet("background-color: rgb(0, 255, 0);")
 
         self.connectButton = QPushButton("refresh")
         
@@ -53,6 +43,7 @@ class QLabBox(QGroupBox):
         self.cursor1.setPosition(0)
         self.clientAutoMessageText.setTextCursor(self.cursor1) 
         self.serverMessageText = QTextEdit()
+        self.serverMessageText.document().setMaximumBlockCount(10)
         self.cursor2 = QtGui.QTextCursor(self.serverMessageText.document())
         self.cursor2.setPosition(0)
         self.serverMessageText.setTextCursor(self.cursor2) 
@@ -93,19 +84,19 @@ class QLabBox(QGroupBox):
     def changeTitle(self, status):
         if status is True:
             self.setTitle("&QLab - Connected")
-            self.setStyleSheet('#QLabBox:title {color: rgb(0,0,0);background-color: rgb(0, 200, 0);}')
+            self.setStyleSheet('#QLabBox:title {color: #001219;background-color: #38b000;}')
         else:
             self.setTitle("&QLab - Disconnected")
-            self.setStyleSheet('#QLabBox:title {color: rgb(0,0,0);background-color: rgb(200, 0, 0);}')
+            self.setStyleSheet('#QLabBox:title {color: #001219;background-color: #ae2012;}')
     def setGreenTitle(self, workspaceID):
         self.setTitle(f"&QLab - Connected - {workspaceID}")
-        self.setStyleSheet('#QLabBox:title {color: rgb(0,0,0);background-color: rgb(0, 200, 0);}')
+        self.setStyleSheet('#QLabBox:title {color: #001219;background-color: #38b000;}')
     def setRedTitle(self):
         self.setTitle("&QLab - Disconnected")
-        self.setStyleSheet('#QLabBox:title {color: rgb(0,0,0);background-color: rgb(200, 0, 0);}')
+        self.setStyleSheet('#QLabBox:title {color: #001219;background-color: #ae2012;}')
 
 class ScoreBox(QGroupBox):
-    def __init__(self, appctxt, parent):
+    def __init__(self, config, parent):
         super(ScoreBox, self).__init__()
         # Set the logger
         # logTextBox = QTextEditLogger(self)
@@ -114,37 +105,27 @@ class ScoreBox(QGroupBox):
         # logging.getLogger().setLevel(logging.DEBUG)
 
         # initializations
-        self.setTitle("&ScoreBox")
-        self.setFixedSize(300,300)
-        self.appctxt = appctxt
+        self.setTitle("&Score")
+        # self.setFixedSize(300,300)
+        self.setMinimumSize(300,100)
+        self.config = config
         self.layout = QGridLayout(self)
-        self.barLabel = QLabel("Bar")
-        self.cueLabel = QLabel("Cue")
-        self.barLcd = QLCDNumber()
-        self.barLcd = QLCDNumber(self)
-        self.barLcd.display(-1)
-        self.barLcd.setDigitCount(3)
-        # self.barLcd.setFixedHeight(35)
-        # self.barLcd.setFixedWidth(35)
-        self.cueLcd = QLCDNumber()
-        self.cueLcd = QLCDNumber(self)
-        self.cueLcd.display(-1)
-        self.cueLcd.setDigitCount(3)
-        self.barLabel.setBuddy(self.barLcd)
-        self.cueLabel.setBuddy(self.cueLcd)
+        
 
-        self.dropdownPiece = QComboBoxBlocking(self)
-        self.dropdownAudioSource = QComboBoxBlocking(self)
+        self.dropdownPiece = QComboBox(self)
+        self.dropdownSection = QComboBox(self)
+        # self.dropdownAudioSource = QComboBox(self)
         # self.dropdown.addItem("Jetee")
 
-        self.layout.addWidget(self.dropdownPiece, 0, 0, 1, 1,Qt.AlignCenter)
-        self.layout.addWidget(self.dropdownAudioSource, 1, 0, 1, 1,Qt.AlignCenter)
+        self.layout.addWidget(self.dropdownPiece, 0, 0, 1, 1)# ,Qt.AlignCenter)
+        self.layout.addWidget(self.dropdownSection, 1, 0, 1, 1)# ,Qt.AlignCenter)
         # self.layout.addWidget(self.bar)
 
-        self.layout.addWidget(self.barLabel, 2, 0, 1, 1, Qt.AlignCenter)
-        self.layout.addWidget(self.barLcd, 2, 1, 1, 1, Qt.AlignCenter)
-        self.layout.addWidget(self.cueLabel, 3, 0, 1, 1, Qt.AlignCenter)
-        self.layout.addWidget(self.cueLcd, 3, 1, 1, 1, Qt.AlignCenter)
+        # self.layout.addWidget(self.barLabel, 2, 0, 1, 1, Qt.AlignCenter)
+        # self.layout.addWidget(self.barDisp, 2, 1, 1, 1, Qt.AlignCenter)
+        # self.layout.addWidget(self.cueLabel, 3, 0, 1, 1, Qt.AlignCenter)
+        # self.layout.addWidget(self.cueDisp, 3, 1, 1, 1, Qt.AlignCenter)
+
         # layout.setColumnMinimumWidth(0, 50) 
         # self.layout.setColumnMinimumWidth(1, 30)
         # layout.setRowMinimumHeight(0, 20) 
@@ -153,8 +134,71 @@ class ScoreBox(QGroupBox):
         #layout.setRowStretch(5, 1)
         self.setLayout(self.layout)
 
+class AudioBox(QGroupBox):
+    def __init__(self, config, parent):
+        super(AudioBox, self).__init__()
+
+        self.setTitle("&Audio Settings")
+        # self.setFixedSize(300,300)
+        self.setMinimumSize(300,300)
+        self.config = config
+        self.layout = QGridLayout(self)
+
+        self.dropdownMode = QComboBox(self)
+        self.modeLabel = QLabel("Mode")
+        self.modeLabel.setBuddy(self.dropdownMode)
+
+        self.rmsDisp = QLineEdit(self)
+        self.rmsDisp.setEnabled(False)
+        self.rmsDisp.setObjectName("rmsDisp")
+
+        self.rmsThrDisp = QLineEdit(self)
+        self.rmsThrDisp.setEnabled(True)
+        self.rmsThrDisp.setObjectName("rmsThrDisp")
+        rmsValidator = QtGui.QDoubleValidator()
+        rmsValidator.setNotation(0)
+        rmsValidator.setBottom(0.0)
+        rmsValidator.setTop(1000.0)
+        rmsValidator.setDecimals(2)
+        self.rmsThrDisp.setValidator(rmsValidator)
+        self.rmsThrDisp.setText(str(self.config.defaultRmsThr))
+
+        # self.tuningDisp = QLineEdit(self)
+        # self.tuningDisp.setEnabled(False)
+        # self.tuningDisp.setObjectName("tuningDisp")
+
+        self.channelDisp = QLineEdit(self)
+        self.channelDisp.setEnabled(True)
+        self.channelDisp.setObjectName("tuningDisp")
+        rx = QtCore.QRegExp(r"^([1-9]{1,2};)*[0-9]{1,2}$")
+        chanValidator = QtGui.QRegExpValidator(rx, self)
+        self.channelDisp.setValidator(chanValidator)
+        self.channelDisp.setText(str(0))
+
+        self.dropdownAudioInput = QComboBox(self)
+        self.inputLabel = QLabel("Input")
+        self.inputLabel.setBuddy(self.dropdownMode)
+
+        self.dropdownAudioOutput = QComboBox(self)
+        self.outputLabel = QLabel("Output")
+        self.outputLabel.setBuddy(self.dropdownMode)
+
+        self.layout.addWidget(self.modeLabel,          0, 0, 1, 1)#, Qt.AlignCenter)
+        self.layout.addWidget(self.dropdownMode,       0, 1, 1, 3)#, Qt.AlignCenter)
+        
+        self.layout.addWidget(self.inputLabel,         1, 0, 1, 1)#, Qt.AlignCenter)
+        self.layout.addWidget(self.dropdownAudioInput, 1, 1, 1, 3)#, Qt.AlignCenter)
+        self.layout.addWidget(self.rmsDisp,            2, 1, 1, 1)#, Qt.AlignCenter)
+        self.layout.addWidget(self.rmsThrDisp,         2, 2, 1, 1)#, Qt.AlignCenter)
+        self.layout.addWidget(self.channelDisp,         2, 3, 1, 1)#, Qt.AlignCenter)
+
+        self.layout.addWidget(self.outputLabel,        3, 0, 1, 1)#, Qt.AlignCenter)
+        self.layout.addWidget(self.dropdownAudioOutput,3, 1, 1, 3)#, Qt.AlignCenter)
+
+        self.setLayout(self.layout)
+
 class AlignBox(QGroupBox):
-    def __init__(self, appctxt, parent):
+    def __init__(self, config, parent):
         super(AlignBox, self).__init__()
         # Set the logger
         # logTextBox = QTextEditLogger(self)
@@ -164,30 +208,84 @@ class AlignBox(QGroupBox):
 
         # initializations
         self.setTitle("&Alignment")
-        self.appctxt = appctxt
+        self.config = config
         self.layout = QGridLayout(self)
 
-        self.win = pg.GraphicsWindow(size=(500,500))
-        self.setMinimumSize(300,300)
+        self.win = pg.GraphicsWindow()#size=(500,500)
+        self.win.setBackground('#001219')
+        # self.win.getAxis('left').setTextPen('b')
+
+
+        # self.setMinimumSize(300,300)
         self.plot = self.win.addPlot(title = "Minimum Cost Path",
-                                  labels = {
-                                  'bottom':"Audio Frames",
-                                  'left':"Score Frames"},
-                                   backround = "white")
-        # self.curve = self.p.plot(pen="r", background="w")
-        # self.plot = pg.plot()
+                                #   labels = {
+                                #   'bottom':"Audio Frames",
+                                #   'left':"Score Frames"},
+                                   )
         self.scatter = pg.ScatterPlotItem(
-            size=3, brush=pg.mkBrush(255, 255, 255, 120))
-        
+            size=3, brush=pg.mkBrush("#94d2bd"))
         self.plot.addItem(self.scatter)
+
+        label_style = {"color": "#bb3e03", "font-size": "14pt"}
+        self.plot.setLabel("bottom", "Audio time (sec)", **label_style)
+        self.plot.setLabel("left", "Score Bars", **label_style)
+        self.plot.setLabel("right", "Score Cues", **label_style)
+        # axis_style = {
+        #     # 'tickTextOffset': [5, 2],
+        #                 # 'tickTextWidth': 30,
+        #                 # 'tickTextHeight': 18,
+        #                 # 'autoExpandTextSpace': True,
+        #                 # 'autoReduceTextSpace': True,
+        #                 # 'tickFont': QtGui.QFont("Times", QtGui.QFont.Bold),
+        #                 # 'stopAxisAtTick': (False, False),
+        #                 # 'textFillLimits': [(0, 0.8), (2, 0.6), (4, 0.4), (6, 0.2)],
+        #                 # 'showValues': True,
+        #                 # 'tickLength': -5,
+        #                 # 'maxTickLevel': 2,
+        #                 # 'maxTextLevel': 2,
+        #                 # 'tickAlpha': None
+        #                 }
+        # axis_style = self.plot.getAxis("left").style
+        # axis_style['tickFond'] = QtGui.QFont("Times", QtGui.QFont.Bold)
+        # axis_style['tickTextOffset'] = [5,2]
+        # self.plot.getAxis("left").setStyle(**axis_style)
         # self.plot.setXRange(0, 2000, padding=0)
         # self.plot.setYRange(0, 2000, padding=0)
         
 
         # layout
+        self.barLabel = QLabel("Bar")
+        self.barLabel.setObjectName('bar')
+        self.cueLabel = QLabel("Cue")
+        self.cueLabel.setObjectName('cue')
+
+        self.barVal = QtGui.QIntValidator()
+        self.barVal.setBottom(0)
+        # self.barVal.setTop(1000.0)
+        self.barDisp = QLineEdit(self)
+        self.barDisp.setEnabled(True)
+        self.barDisp.setText(str(0))
+        self.barDisp.setObjectName("barDisp")
+        self.barDisp.setValidator(self.barVal)
+
+        self.cueVal = QtGui.QIntValidator()
+        self.cueVal.setBottom(0)
+        # self.curVal.setT
+        self.cueDisp = QLineEdit(self)
+        self.cueDisp.setText(str(0))
+        self.cueDisp.setObjectName("cueDisp")
+        self.cueDisp.setValidator(self.cueVal)
+
+        self.barLabel.setBuddy(self.barDisp)
+        self.cueLabel.setBuddy(self.cueDisp)
         
         
-        self.layout.addWidget(self.win, 0, 0, 1, 1, Qt.AlignCenter)
+
+        self.layout.addWidget(self.barLabel, 0, 0, 1, 1, Qt.AlignRight)
+        self.layout.addWidget(self.barDisp, 0, 1, 1, 1, Qt.AlignLeft)
+        self.layout.addWidget(self.cueLabel, 0, 2, 1, 1, Qt.AlignRight)
+        self.layout.addWidget(self.cueDisp, 0, 3, 1, 1, Qt.AlignLeft)
+        self.layout.addWidget(self.win, 1, 0, 4, 4)#, Qt.AlignCenter)
         # layout.setColumnMinimumWidth(0, 50) 
         # self.layout.setColumnMinimumWidth(1, 30)
         # layout.setRowMinimumHeight(0, 20) 
@@ -208,22 +306,21 @@ class AlignBox(QGroupBox):
 
 
 class QLabInterface(QObject):
-    # signalToAligner = pyqtSignal()
-    def __init__(self, appctxt, oscClient, oscListener, qLabGroup):
+    signalNewBarOsc = pyqtSignal(str)
+    signalNewCueOsc = pyqtSignal(str)
+    def __init__(self, config, oscClient, oscListener, qLabGroup, main):
         super(QLabInterface, self).__init__()
 
         # initializations
         self.setObjectName("QLabInterface")
-        self.appctxt = appctxt
+        self.config = config
+        self.main = main
         self.oscClient = oscClient
         self.oscListener = oscListener
         self.qLabGroup = qLabGroup
         self.connectionStatus = False
         self.greetingsCnt = 0
         self.greetingsRsp = 0
-        # self.timer = QtCore.QTimer()
-        # self.timer.timeout.connect(self.checkConnection)
-        # self.timer.start(1000)
 
         self.thumpsCnt = 0
         # self.thumpsRsp = 0
@@ -249,6 +346,16 @@ class QLabInterface(QObject):
         
     def sendBarTrigger(self, cue):
         address = f"/bar/{cue['ind']}"
+        self.oscClient.emit(address, arg = None)
+        self.updateClientText(address, args = None)
+
+    def sendStartTrigger(self):
+        address = f"/start"
+        self.oscClient.emit(address, arg = None)
+        self.updateClientText(address, args = None)
+
+    def sendStopTrigger(self):
+        address = f"/stop"
         self.oscClient.emit(address, arg = None)
         self.updateClientText(address, args = None)
 
@@ -350,18 +457,85 @@ class QLabInterface(QObject):
             self.updateListenerText("qLab", addressParts, args)
     
     def touchResponseCallbackRouter(self, load):
+        # TODO # ! There is no QLab interface anymore. 
+        # TODO Move the callbackRouters in main.py
+        # TODO because there's gonna be a ton of extra signals/slots
+        # TODO for each new command
+        # ! or just have the parent/main.py as an input here
         address = load[0]
         args = load[1]
         addressParts = address.split("/")[1:]
-
+        
         # first part should be always "reply"
-        # print(addressParts)
+        print(addressParts)
         if addressParts[0] != "response":
             logging.error(f"TouchResponseCallback got {address} and args {args}")
             raise # TODO not a good idea to raise like this
         
-        # check if this is a response to Version
+        if len(addressParts) >= 2:
+            if addressParts[1] == "setBar":
+                newBar = addressParts[2]
+                self.signalNewBarOsc.emit(newBar)
+                logging.debug(f"Setting bar to {addressParts[2]}")
 
+            elif addressParts[1] == "setCue":
+                newCue = addressParts[2]
+                self.signalNewCueOsc.emit(newCue)
+                logging.debug(f"Setting cue to {addressParts[2]}")
+            
+            elif addressParts[1] == "start":
+                logging.debug(f"Received /start command from TD")
+                self.main.startRecording()
+            elif addressParts[1] == "stop":
+                logging.debug(f"Received /stop command from TD")
+                self.main.stopRecording()
+            elif addressParts[1] == "startStop":
+                logging.debug(f"Received /starSTop command from TD")
+                self.main.startStopRecording()
+            elif addressParts[1] == "reset":
+                logging.debug(f"Received /reset command from TD")
+                self.main.reset()
+            elif addressParts[1] == "nextSection":
+                logging.debug(f"Received /nextSection command from TD")
+                currentInd = self.main.sectionNames.index(self.main.sectionName)
+                if currentInd < len(self.main.sectionNames) - 1:
+                    self.main.sectionName = self.main.sectionNames[currentInd + 1]
+                    self.main.scoreGroup.dropdownSection.setCurrentIndex(currentInd)
+            elif addressParts[1] == "prevSection":
+                logging.debug(f"Received /prevSection command from TD")
+                currentInd = self.main.sectionNames.index(self.main.sectionName)
+                if currentInd > 0:
+                    self.main.stopRecording()
+                    self.main.sectionName = self.main.sectionNames[currentInd - 1]
+                    self.main.scoreGroup.dropdownSection.setCurrentIndex(currentInd)
+            elif addressParts[1] == "nextPiece":
+                logging.debug(f"Received /nextPiece command from TD")
+                currentInd = self.main.pieceNames.index(self.main.pieceName)
+                print(f"currentInd {currentInd} and pieceNames {self.main.pieceNames}")
+                if currentInd < len(self.main.pieceNames) - 1:
+                    print(f"Setting piece to {self.main.pieceNames[currentInd + 1]}")
+                    self.main.stopRecording()
+                    self.main.pieceName = self.main.pieceNames[currentInd + 1]
+                    self.main.scoreGroup.dropdownPiece.setCurrentIndex(currentInd + 1)
+            elif addressParts[1] == "prevPiece":
+                logging.debug(f"Received /prevPiece command from TD")
+                currentInd = self.main.pieceNames.index(self.main.pieceName)
+                print(f"currentInd {currentInd} and pieceNames {self.main.pieceNames}")
+                if currentInd > 0:
+                    print(f"Setting piece to {self.main.pieceNames[currentInd - 1]}")
+                    self.main.stopRecording()
+                    self.main.pieceName = self.main.pieceNames[currentInd - 1]
+                    self.main.scoreGroup.dropdownPiece.setCurrentIndex(currentInd - 1)
+            elif addressParts[1] == "setPiece":
+                logging.debug(f"Received {addressParts} command from TD")
+                try:
+                    newInd = self.main.pieceNames.index(addressParts[2])
+                    self.main.stopRecording()
+                    self.main.pieceName = self.main.pieceNames[newInd]
+                    self.main.scoreGroup.dropdownPiece.setCurrentIndex(newInd)
+                except:
+                    logging.error(f"Could not find {addressParts[2]} in {self.main.pieceNames}")
+                    
         self.updateListenerText("touchDesigner", addressParts, args)
 
     def unknownResponseCallbackRouter(self, load):

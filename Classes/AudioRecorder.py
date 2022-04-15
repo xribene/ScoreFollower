@@ -16,7 +16,7 @@ class AudioRecorder(QObject):
     signalToChromatizer = pyqtSignal(object)
     # signalEnd = pyqtSignal()
     def __init__(self, queue, rate = 22050, chunk = 4096,
-                       input_device_index = 0):
+                       input_device_index = None, output_device_index = None):
         QObject.__init__(self)
         self.rate = rate
         self.i=0
@@ -25,20 +25,72 @@ class AudioRecorder(QObject):
         self.queue = queue
         # self.deque = deque(rate*1)
         self.p = pyaudio.PyAudio()
-        self.input_device_index = input_device_index
+        self.defaultInputInfo = self.p.get_default_input_device_info()
+        self.defaultOutputInfo = self.p.get_default_output_device_info()
+        self.input_device_index = self.defaultInputInfo['index']
+        self.output_device_index = self.defaultOutputInfo['index']
+        if input_device_index:
+            self.input_device_index = input_device_index
+        if output_device_index:
+            self.output_device_index = output_device_index
+        
+        self.inputDevices = []
+        self.outputDevices = []
+        self.hostApiIndex = self.p.get_default_host_api_info()['index']
+        for i in range(0, self.p.get_default_host_api_info()['deviceCount']):
+            dev = self.p.get_device_info_by_host_api_device_index(self.hostApiIndex, i)
+            if dev['maxInputChannels'] > 0:
+                self.inputDevices.append(dev)
+                print(f"{dev}")
+            if dev['maxOutputChannels'] > 0:
+                self.outputDevices.append(dev)
+                print(f"{dev}")
+    
 
         # self.createStream(audioSource)
         self.stopped = True
         self.frames = []
         self.stream = None
         self.file = None
+        self.emmiting = True
+        self.inputChannels = [-1]
 
         logging.warning("audio recorder init done")
 
 
-    def createStream(self, audioSource = "microphone"):
+    def createStream(self, audioSource = "Microphone"):
         self.audioSource = audioSource
-        if self.audioSource != "microphone":
+        
+        if self.audioSource == 'Microphone':
+            self.file = None
+            self.maxInputChannels = self.p.get_device_info_by_host_api_device_index(self.hostApiIndex, self.input_device_index)['maxInputChannels']
+            self.actualMaxInputChannels = self.maxInputChannels
+            self.stream = None
+            while self.actualMaxInputChannels > 0:
+                try:
+                    self.stream = self.p.open(format= pyaudio.paInt16,
+                                        start = False,
+                                        channels = self.maxInputChannels,
+                                        rate = self.rate,
+                                        input = True,
+                                        # output = True,
+                                        input_device_index = self.input_device_index,
+                                        frames_per_buffer = self.chunk,
+                                        stream_callback = self._micCallback)
+                except:
+                    self.actualMaxInputChannels -= 1
+                if self.stream:
+                    break
+            if self.stream is None:
+                logging.error(f"Problem with number of channels. Max is {self.maxInputChannels} Actual is {self.actualMaxInputChannels}")
+                raise
+            logging.debug(f"Actual is {self.actualMaxInputChannels}")
+
+            if self.inputChannels == [-1]:
+                self.inputChannels = list(range(self.actualMaxInputChannels))  
+            
+                
+        else:
             self.file = wave.open(self.audioSource, 'r')
             self.stream = self.p.open(
                                     format=self.p.get_format_from_width(self.file.getsampwidth()),
@@ -48,20 +100,13 @@ class AudioRecorder(QObject):
                                     input = True,
                                     output = True,
                                     frames_per_buffer = self.chunk,
+                                    output_device_index=self.output_device_index,
                                     stream_callback = self._wavCallback)
             logging.debug(f"CHANNELS ARE {self.file.getnchannels()}")
-        else:
-            self.file = None
-            self.stream = self.p.open(format= pyaudio.paInt16,
-                                    start = False,
-                                    channels = 1,
-                                    rate = self.rate,
-                                    input = True,
-                                    # output = True,
-                                    # input_device_index = self.input_device_index,
-                                    frames_per_buffer = self.chunk,
-                                    stream_callback = self._micCallback)
-            
+        
+        
+        
+
         
     def reset(self):
         self.stopStream()
@@ -73,6 +118,14 @@ class AudioRecorder(QObject):
             self.startStream()
         else:
             self.stopStream()
+    
+    def startStopEmitting(self):
+        self.emitting = not self.emitting
+
+    def startEmitting(self):
+        self.emitting = True
+    def stopEmitting(self):
+        self.emitting = False
 
     def startStream(self):
         if self.stopped:
@@ -97,9 +150,9 @@ class AudioRecorder(QObject):
         wf.close()
 
     def closeStream(self):
-        if not self.stopped:
-            self.stream.stop_stream()
         if self.stream:
+            if not self.stopped:
+                self.stream.stop_stream()
             self.stream.close()
 
     def terminate(self):
@@ -114,7 +167,14 @@ class AudioRecorder(QObject):
 
     def  _micCallback(self, in_data, frame_count, time_info, status):
         data = np.frombuffer(in_data, "int16")
-        self.signalToChromatizer.emit(data)
+        # print(data.shape)
+        data_per_channel=[data[chan::self.actualMaxInputChannels] for chan in self.inputChannels]
+        # mono = data_per_channel[1]
+        mono = sum(data_per_channel) / len(self.inputChannels)
+        # print(f"mono shape {mono.shape} ")
+        # print(f"len of data_per_channel is {len(data_per_channel)}")
+        if self.emmiting:
+            self.signalToChromatizer.emit(mono)
         # self.queue.push(data)
         self.frames.append(in_data)
         return (data, pyaudio.paContinue)
@@ -126,10 +186,11 @@ class AudioRecorder(QObject):
         data_per_channel=[data[chan::self.file.getnchannels()] for chan in range(self.file.getnchannels())]
         # logging.debug(f"{data_per_channel[0].shape}")
         # mono = (data_per_channel[0] + data_per_channel[1])/2
-        mono = data_per_channel[0]
+        # print(data.shape)
+        mono = sum(data_per_channel) / self.file.getnchannels()
         self.signalToChromatizer.emit(mono)
         # self.queue.push(mono)
-        self.i += 1
+        # self.i += 1
         # print(self.i)
         self.frames.append(data)
         return (data, pyaudio.paContinue)
