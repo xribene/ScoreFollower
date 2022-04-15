@@ -18,8 +18,8 @@
     "power" : 2,
 
     "ipOut" : "127.0.0.1",
-    "portOut" : 53000,
-    "portIn" : 53001,
+    "portOut" : 54000,
+    "portIn" : 54001,
 
     "plotPeriod" : 10,
     "audioInput" : "recordedJetee.wav",
