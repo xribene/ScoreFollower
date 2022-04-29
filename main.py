@@ -70,7 +70,7 @@ class QTextEditLogger(logging.Handler):
 
 class ScoreFollower(QWidget):
     signalToAligner = pyqtSignal()
-    def __init__(self):
+    def __init__(self, td):
         super(ScoreFollower, self).__init__()
         self.setupFinished = False
         # Set the logger
@@ -84,6 +84,7 @@ class ScoreFollower(QWidget):
         self.setObjectName("ScoreFollower")
         self.rms = 0.0
         self.a = 0.25
+        self.td = td
         
 
         # gui elements
@@ -423,11 +424,17 @@ class ScoreFollower(QWidget):
         self.chromatizer.moveToThread(self.chromaThread)
 
         self.oscClientThread = QThread()
-        self.oscClient = ClientOSC(ip = self.config.ipOut, port = self.config.portOut)
+        if self.td == 1:
+            portOut = self.config.portIn
+            portIn = self.config.portOut
+        else:
+            portOut = self.config.portOut
+            portIn = self.config.portIn
+        self.oscClient = ClientOSC(ip = self.config.ipOut, port = portOut)
         self.oscClient.moveToThread(self.oscClientThread)
 
         self.oscServerThread = QThread()
-        self.oscServer = ServerOSC(port = self.config.portIn)
+        self.oscServer = ServerOSC(port = portIn)
         self.oscServer.moveToThread(self.oscServerThread)
 
         # self.alignerThread = QThread()
@@ -505,8 +512,13 @@ class ScoreFollower(QWidget):
         # self.alignGroup.scatter.sigPlotChanged.emit(self.alignGroup.scatter)
         print("before starting aligner")
         self.startAligner()
+
+        self.aligner.j_todo = 0
+        self.aligner.j_todo_flag = False
+
         logging.debug("finished main reset")
         self.qLabInterface.sendFeedback('reset')
+
         # self.timer.stop()
         # print(np.mean(self.aligner.durs))
 
@@ -606,7 +618,7 @@ class ScoreFollower(QWidget):
         if self.audioRecorder.stopped == True:
             logging.debug(f'updating lastStartingCue to {newCue}')
             self.lastStartingCue = int(newCue)
-            self.lastStartingBar = self.frame2barDict[frame]
+            # self.lastStartingBar = self.frame2barDict[frame]
             self.lastStartingFrame = frame
 
     @pyqtSlot(str)
@@ -628,14 +640,14 @@ class ScoreFollower(QWidget):
             logging.debug(f'updating lastStartingBar to {bar}')
             
             self.lastStartingBar = int(bar)
-            self.lastStartingCue = self.frame2cueDict[frame]
+            # self.lastStartingCue = self.frame2cueDict[frame]
             self.lastStartingFrame = frame
 
     @pyqtSlot(str)
     def processNewCueInputOSC(self, cue):
         logging.debug(f'User OSC set cue {cue}')  
         try:
-            frame = self.bar2frameDict[int(cue)]
+            frame = self.cue2frameDict[int(cue)]
         except:
             logging.debug(f'{cue} is not a valid cue number')
             return
@@ -648,7 +660,7 @@ class ScoreFollower(QWidget):
         if self.aligner.recording == False:
             logging.debug(f'updating lastStartingCue to {cue}')
             self.lastStartingCue = int(cue)
-            self.lastStartingBar = self.frame2barDict[frame]
+            # self.lastStartingBar = self.frame2barDict[frame]
             self.lastStartingFrame = frame
 
     def nextBar(self):
@@ -678,8 +690,12 @@ class ScoreFollower(QWidget):
     def prevCue(self):
         logging.debug(f'User OSC Prev cue')
         cueInd = self.cueList.index(self.currentCue)
+        logging.debug(f'message cueInd {cueInd}')
+        
         if cueInd > 0:
             prevCue = self.cueList[cueInd-1]
+            logging.debug(f'message prevCue {prevCue}')
+            
             self.processNewCueInputOSC(str(prevCue))
         else:
             logging.debug(f'cue out of bounds')
@@ -779,6 +795,11 @@ class ScoreFollower(QWidget):
         # self.graphWidget.plot(line[:,0], line[:,1])
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description='ScoreFollower')
+    parser.add_argument('--td', type = int, default=0)
+    args = parser.parse_args()
     QThread.currentThread().setObjectName('MainThread')
     logging.getLogger().setLevel(logging.DEBUG)
     # Uncomment below for terminal log messages
@@ -789,6 +810,6 @@ if __name__ == "__main__":
     with open(styleSheet,"r") as fh:
         app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5() + fh.read())
     # app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
-    mainWindow = ScoreFollower()
+    mainWindow = ScoreFollower(td = args.td)
     exit_code = app.exec_()
     sys.exit(exit_code)
