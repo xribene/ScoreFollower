@@ -340,7 +340,7 @@ class QLabInterface(QObject):
         # self.rspTimer.setSingleShot(True)
         # self.rspTimer.singleShot(3000, self.connectionLost)
     def sendCueTrigger(self, cue):
-        address = f"/workspace/{self.workspaceID}/playhead/{int(cue['name'])}"
+        address = f"cue/{int(cue['name'])}"
         self.oscClient.emit(address, arg = None)
         self.updateClientText(address, args = None)
         
@@ -351,13 +351,13 @@ class QLabInterface(QObject):
 
     def sendStartTrigger(self):
         address = f"/start"
-        self.oscClient.emit(address, arg = None)
-        self.updateClientText(address, args = None)
+        # self.oscClient.emit(address, arg = None)
+        # self.updateClientText(address, args = None)
 
     def sendStopTrigger(self):
         address = f"/stop"
-        self.oscClient.emit(address, arg = None)
-        self.updateClientText(address, args = None)
+        # self.oscClient.emit(address, arg = None)
+        # self.updateClientText(address, args = None)
     
     def sendFeedback(self, mode, args = None):
         if mode == 'cue':
@@ -368,6 +368,14 @@ class QLabInterface(QObject):
             address = f"/feedback/started"
         elif mode == 'stop':
             address = f"/feedback/stopped"
+        elif mode == 'reset':
+            address = f"/feedback/reset"
+        elif mode == 'pause':
+            address = f"/feedback/paused"
+        elif mode == 'piece':
+            address = f"/feedback/piece/{args}"
+        elif mode == 'section':
+            address = f"/feedback/section/{args}"
         self.oscClient.emit(address, arg = args)
         self.updateClientText(address, args = args)
 
@@ -516,7 +524,7 @@ class QLabInterface(QObject):
                 self.main.startRecording(feedback = True)
             elif addressParts[1] == "stop":
                 logging.debug(f"Received /stop command from TD")
-                self.main.stopRecording(feedback = True)
+                self.main.stopButtonCallback()
             elif addressParts[1] == "startStop":
                 logging.debug(f"Received /starSTop command from TD")
                 self.main.startStopRecording(feedback = True)
@@ -526,10 +534,14 @@ class QLabInterface(QObject):
 
             elif addressParts[1] == "nextSection":
                 logging.debug(f"Received /nextSection command from TD")
+                logging.debug(f'current section is {self.main.sectionName} with index {self.main.sectionNames.index(self.main.sectionName)}')
+                
                 currentInd = self.main.sectionNames.index(self.main.sectionName)
                 if currentInd < len(self.main.sectionNames) - 1:
+                    logging.debug(f'inside IF')
+                    
                     self.main.sectionName = self.main.sectionNames[currentInd + 1]
-                    self.main.scoreGroup.dropdownSection.setCurrentIndex(currentInd)
+                    self.main.scoreGroup.dropdownSection.setCurrentIndex(currentInd + 1)
                     # ! TODO same name on different sections doesn't work because of index.
             elif addressParts[1] == "prevSection":
                 logging.debug(f"Received /prevSection command from TD")
@@ -537,7 +549,7 @@ class QLabInterface(QObject):
                 if currentInd > 0:
                     self.main.stopRecording()
                     self.main.sectionName = self.main.sectionNames[currentInd - 1]
-                    self.main.scoreGroup.dropdownSection.setCurrentIndex(currentInd)
+                    self.main.scoreGroup.dropdownSection.setCurrentIndex(currentInd - 1)
 
             elif addressParts[1] == "nextPiece":
                 logging.debug(f"Received /nextPiece command from TD")

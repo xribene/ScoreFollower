@@ -384,6 +384,10 @@ class ScoreFollower(QWidget):
         ax2 = self.alignGroup.plot.getAxis('right')
         ax2.setTicks([[(v, str(self.frame2cueDict[v])) for v in self.cueFrameList ] ]) # , [(v, str(v)) for v in cueFrameList ]
 
+        # send feedback to TD
+        self.qLabInterface.sendFeedback("piece", self.pieceName)
+        self.qLabInterface.sendFeedback("section", self.sectionName)
+
     def setupThreads(self):
         self.readQueue = queue.Queue()
         self.chromaBuffer = queue.LifoQueue(1000)
@@ -478,7 +482,7 @@ class ScoreFollower(QWidget):
 
         self.alignGroup.cueDisp.setText(str(self.lastStartingCue))
         self.alignGroup.barDisp.setText(str(self.lastStartingBar))
-
+        self.qLabInterface.sendFeedback('stop')
         # frame = self.cue2frameDict[int(self.lastStartingBar)]
         # self.aligner.j_todo = frame
         # self.aligner.j_todo_flag = True
@@ -502,6 +506,7 @@ class ScoreFollower(QWidget):
         print("before starting aligner")
         self.startAligner()
         logging.debug("finished main reset")
+        self.qLabInterface.sendFeedback('reset')
         # self.timer.stop()
         # print(np.mean(self.aligner.durs))
 
@@ -714,7 +719,7 @@ class ScoreFollower(QWidget):
         if self.audioRecorder.stopped is True:
             self.qLabInterface.sendStopTrigger()
             if feedback is True:
-                self.qLabInterface.sendFeedback('stop')
+                self.qLabInterface.sendFeedback('pause')
             self.aligner.recording = False
             self.toolbar.playPause.setIcon(QtGui.QIcon(resource_path("resources/svg/rec.svg")))
             logging.debug(f"{len(self.aligner.dursJ)} J iterations with mean running time = {np.mean(self.aligner.dursJ)}")
@@ -744,7 +749,7 @@ class ScoreFollower(QWidget):
             self.audioRecorder.startStopStream()
             self.qLabInterface.sendStopTrigger()
             if feedback is True:
-                self.qLabInterface.sendFeedback('stop')
+                self.qLabInterface.sendFeedback('pause')
             self.aligner.recording = False
             self.toolbar.playPause.setIcon(QtGui.QIcon(resource_path("resources/svg/rec.svg")))
             logging.debug(f"set aligner.recording to {self.aligner.recording}")
