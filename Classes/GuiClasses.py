@@ -358,6 +358,20 @@ class QLabInterface(QObject):
         address = f"/stop"
         self.oscClient.emit(address, arg = None)
         self.updateClientText(address, args = None)
+    
+    def sendFeedback(self, mode, args = None):
+        if mode == 'cue':
+            address = f"/feedback/cue/{args}"
+        elif mode == 'bar':
+            address = f"/feedback/bar/{args}"
+        elif mode == 'start':
+            address = f"/feedback/started"
+        elif mode == 'stop':
+            address = f"/feedback/stopped"
+        self.oscClient.emit(address, arg = args)
+        self.updateClientText(address, args = args)
+
+
 
     def checkConnection(self):
         # print(f"{self.connectionStatus} {self.greetingsCnt} - {self.greetingsRsp}")
@@ -482,25 +496,41 @@ class QLabInterface(QObject):
                 newCue = addressParts[2]
                 self.signalNewCueOsc.emit(newCue)
                 logging.debug(f"Setting cue to {addressParts[2]}")
+
+            elif addressParts[1] == "nextBar":
+                self.main.nextBar()
+                logging.debug(f"Received /nextBar command")
+            elif addressParts[1] == "prevBar":
+                self.main.prevBar()
+                logging.debug(f"Received /prevBar command")
+            
+            elif addressParts[1] == "nextCue":
+                self.main.nextCue()
+                logging.debug(f"Received /nextCue command")
+            elif addressParts[1] == "prevCue":
+                self.main.prevCue()
+                logging.debug(f"Received /prevCue command")
             
             elif addressParts[1] == "start":
                 logging.debug(f"Received /start command from TD")
-                self.main.startRecording()
+                self.main.startRecording(feedback = True)
             elif addressParts[1] == "stop":
                 logging.debug(f"Received /stop command from TD")
-                self.main.stopRecording()
+                self.main.stopRecording(feedback = True)
             elif addressParts[1] == "startStop":
                 logging.debug(f"Received /starSTop command from TD")
-                self.main.startStopRecording()
+                self.main.startStopRecording(feedback = True)
             elif addressParts[1] == "reset":
                 logging.debug(f"Received /reset command from TD")
                 self.main.reset()
+
             elif addressParts[1] == "nextSection":
                 logging.debug(f"Received /nextSection command from TD")
                 currentInd = self.main.sectionNames.index(self.main.sectionName)
                 if currentInd < len(self.main.sectionNames) - 1:
                     self.main.sectionName = self.main.sectionNames[currentInd + 1]
                     self.main.scoreGroup.dropdownSection.setCurrentIndex(currentInd)
+                    # ! TODO same name on different sections doesn't work because of index.
             elif addressParts[1] == "prevSection":
                 logging.debug(f"Received /prevSection command from TD")
                 currentInd = self.main.sectionNames.index(self.main.sectionName)
@@ -508,6 +538,7 @@ class QLabInterface(QObject):
                     self.main.stopRecording()
                     self.main.sectionName = self.main.sectionNames[currentInd - 1]
                     self.main.scoreGroup.dropdownSection.setCurrentIndex(currentInd)
+
             elif addressParts[1] == "nextPiece":
                 logging.debug(f"Received /nextPiece command from TD")
                 currentInd = self.main.pieceNames.index(self.main.pieceName)

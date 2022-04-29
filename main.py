@@ -84,6 +84,7 @@ class ScoreFollower(QWidget):
         self.setObjectName("ScoreFollower")
         self.rms = 0.0
         self.a = 0.25
+        
 
         # gui elements
         self.menuBar = MenuBar(self)
@@ -307,8 +308,10 @@ class ScoreFollower(QWidget):
         self.cuesDict = np.load(resource_path(f"resources/Pieces/{self.pieceName}/{self.sectionName}/cuesDict_{self.pieceName}_{sectionNameNoNumber}.npy"), allow_pickle=True).item()
         frames = list(self.cuesDict.keys())
         frames.sort()
-        barFrameList = []
-        cueFrameList = []
+        self.barFrameList = []
+        self.cueFrameList = []
+        self.barList = []
+        self.cueList = []
         self.bar2frameDict = {}
         self.cue2frameDict = {}
         self.frame2barDict = {}
@@ -319,14 +322,21 @@ class ScoreFollower(QWidget):
             # cuesList.extend([int(event['name']) for event in events if event['type']=='cue'])
             for event in events:
                 if event['type'] == 'bar':
-                    barFrameList.append(frame)
+                    self.barFrameList.append(frame)
                     self.bar2frameDict[int(event['ind'])] = frame
                     self.frame2barDict[frame] = int(event['ind'])
+                    self.barList.append(int(event['ind']))
+                    
                 elif event['type'] == 'cue':
-                    cueFrameList.append(frame)
+                    self.cueFrameList.append(frame)
                     self.cue2frameDict[int(event['name'])] = frame
                     self.frame2cueDict[frame] = int(event['name'])
-
+                    self.cueList.append(int(event['name']))
+        self.lastStartingCue = min(self.cueList)
+        self.lastStartingBar = min(self.barList)
+        self.lastStartingFrame = 0
+        self.currentCue = self.lastStartingCue
+        self.currentBar = self.lastStartingBar
         # logging.debug(f'cues')
         
         # get the reference chroma vectors
@@ -368,11 +378,11 @@ class ScoreFollower(QWidget):
         # print(self.frame2cueDict)
         # print(self.cues)
         ax = self.alignGroup.plot.getAxis('left')
-        ax.setTicks([[(v, str(self.frame2barDict[v])) for v in barFrameList ] ]) 
+        ax.setTicks([[(v, str(self.frame2barDict[v])) for v in self.barFrameList ] ]) 
         ax.setGrid(255*0.2)
 
         ax2 = self.alignGroup.plot.getAxis('right')
-        ax2.setTicks([[(v, str(self.frame2cueDict[v])) for v in cueFrameList ] ]) # , [(v, str(v)) for v in cueFrameList ]
+        ax2.setTicks([[(v, str(self.frame2cueDict[v])) for v in self.cueFrameList ] ]) # , [(v, str(v)) for v in cueFrameList ]
 
     def setupThreads(self):
         self.readQueue = queue.Queue()
@@ -457,6 +467,21 @@ class ScoreFollower(QWidget):
 
         # self.timer.setSingleShot(True)
         # self.timer.singleShot(1000, self.aligner.align)
+    @pyqtSlot()
+    def stopButtonCallback(self):
+        self.reset()
+        self.alignGroup.barDisp.setText(str(self.lastStartingBar))
+
+        # frame = self.bar2frameDict[int(self.lastStartingBar)]
+        self.aligner.j_todo = self.lastStartingFrame
+        self.aligner.j_todo_flag = True
+
+        self.alignGroup.cueDisp.setText(str(self.lastStartingCue))
+        self.alignGroup.barDisp.setText(str(self.lastStartingBar))
+
+        # frame = self.cue2frameDict[int(self.lastStartingBar)]
+        # self.aligner.j_todo = frame
+        # self.aligner.j_todo_flag = True
 
     @pyqtSlot()
     def reset(self):
@@ -464,8 +489,10 @@ class ScoreFollower(QWidget):
         if self.audioRecorder.stopped is False:
             self.startStopRecording()
             QThread.msleep(1000)
-        self.alignGroup.cueDisp.setText(str(0))
-        self.alignGroup.barDisp.setText(str(0))
+        # if isStop == False:
+        self.alignGroup.cueDisp.setText(str(self.cueList[0]))
+        self.alignGroup.barDisp.setText(str(self.barList[0]))
+        
         self.audioRecorder.reset()
         self.aligner.reset()
         print("out of aligner")
@@ -495,6 +522,7 @@ class ScoreFollower(QWidget):
         self.aligner.signalEnd.connect(self.alignerStoppedCallback)
         # ! remove that after testing
         self.toolbar.reset.triggered.connect(self.reset)
+        self.toolbar.stop.triggered.connect(self.stopButtonCallback)
         # self.toolbar.save.triggered.connect(self.startAligner)
         # self.toolbar.preferences.triggered.connect(self.plotCurrentPath)
         # self.toolbar.preferences.triggered.connect(self.stopAligner)
@@ -523,37 +551,137 @@ class ScoreFollower(QWidget):
         self.chromatizer.rmsThr = float(self.audioGroup.rmsThrDisp.text())
         logging.debug(f'User set RMS THR to {float(self.audioGroup.rmsThrDisp.text())}')
 
+    # @pyqtSlot()
+    # def processNewBarInput(self, ):
+    #     logging.debug(f'User set bar {self.alignGroup.barDisp.text()}')
+    #     # self.aligner.setStartingScoreFrame(self.bar2frameDict[int(self.alignGroup.barDisp.text())])
+    #     frame = self.bar2frameDict[int(self.alignGroup.barDisp.text())]
+    #     self.aligner.j_todo = frame
+    #     self.aligner.j_todo_flag = True
+
     @pyqtSlot()
-    def processNewBarInput(self, ):
-        logging.debug(f'User set bar {self.alignGroup.barDisp.text()}')
-        # self.aligner.setStartingScoreFrame(self.bar2frameDict[int(self.alignGroup.barDisp.text())])
-        frame = self.bar2frameDict[int(self.alignGroup.barDisp.text())]
+    def processNewBarInput(self):
+        newBar = self.alignGroup.barDisp.text()
+        
+        logging.debug(f'User set cue {newBar}')  
+        try:
+            frame = self.bar2frameDict[int(newBar)]
+        except:
+            logging.debug(f'{newBar} is not a valid bar number')
+            return
+        self.currentBar = int(newBar) 
         self.aligner.j_todo = frame
         self.aligner.j_todo_flag = True
+        self.qLabInterface.sendFeedback('bar', int(newBar))
+        # if is playing then don't update lastStartedBar
+        if self.audioRecorder.stopped == True:
+            logging.debug(f'updating lastStartingBar to {newBar}')
+            
+            self.lastStartingBar = int(newBar)
+            self.lastStartingFrame = frame
+            # self.lastStartingCue = self.frame2cueDict[frame]
+            
 
     @pyqtSlot()
     def processNewCueInput(self):
-        logging.debug(f'User set cue {self.alignGroup.cueDisp.text()}')  
-        frame = self.cue2frameDict[int(self.alignGroup.cueDisp.text())]
+        newCue = self.alignGroup.cueDisp.text()
+        
+        logging.debug(f'User set cue {newCue}')
+        try:
+            frame = self.bar2frameDict[int(newCue)]
+        except:
+            logging.debug(f'{newCue} is not a valid cue number')
+            return
+        self.currentCue = int(newCue)
+        frame = self.cue2frameDict[int(newCue)]
         self.aligner.j_todo = frame
         self.aligner.j_todo_flag = True
-        # self.aligner.setStartingScoreFrame() 
+        self.qLabInterface.sendFeedback('cue', int(newCue))
+        # if is playing then don't update lastStartedBar
+        if self.audioRecorder.stopped == True:
+            logging.debug(f'updating lastStartingCue to {newCue}')
+            self.lastStartingCue = int(newCue)
+            self.lastStartingBar = self.frame2barDict[frame]
+            self.lastStartingFrame = frame
 
     @pyqtSlot(str)
     def processNewBarInputOSC(self, bar):
         logging.debug(f'User OSC set bar {bar}')
+        try:
+            frame = self.bar2frameDict[int(bar)]
+        except:
+            logging.debug(f'{bar} is not a valid bar number')
+            return
+        self.currentBar = int(bar)
         self.alignGroup.barDisp.setText(bar)
         frame = self.bar2frameDict[int(bar)]
         self.aligner.j_todo = frame
         self.aligner.j_todo_flag = True
+        self.qLabInterface.sendFeedback('bar', int(bar))
+        # if is playing then don't update lastStartedBar
+        if self.aligner.recording == False:
+            logging.debug(f'updating lastStartingBar to {bar}')
+            
+            self.lastStartingBar = int(bar)
+            self.lastStartingCue = self.frame2cueDict[frame]
+            self.lastStartingFrame = frame
 
     @pyqtSlot(str)
     def processNewCueInputOSC(self, cue):
         logging.debug(f'User OSC set cue {cue}')  
+        try:
+            frame = self.bar2frameDict[int(cue)]
+        except:
+            logging.debug(f'{cue} is not a valid cue number')
+            return
+        self.currentCue = int(cue)
         self.alignGroup.cueDisp.setText(cue)
         frame = self.cue2frameDict[int(cue)]
         self.aligner.j_todo = frame
         self.aligner.j_todo_flag = True
+        self.qLabInterface.sendFeedback('cue', int(cue))
+        if self.aligner.recording == False:
+            logging.debug(f'updating lastStartingCue to {cue}')
+            self.lastStartingCue = int(cue)
+            self.lastStartingBar = self.frame2barDict[frame]
+            self.lastStartingFrame = frame
+
+    def nextBar(self):
+        logging.debug(f'User OSC Next bar')
+        barInd = self.barList.index(self.currentBar)
+        if barInd < len(self.barList)-1:
+            nextBar = self.barList[barInd+1]
+            self.processNewBarInputOSC(str(nextBar))
+        else:
+            logging.debug(f'bar out of bounds')
+    def prevBar(self):
+        logging.debug(f'User OSC Prev bar')
+        barInd = self.barList.index(self.currentBar)
+        if barInd > 0:
+            prevBar = self.barList[barInd-1]
+            self.processNewBarInputOSC(str(prevBar))
+        else:
+            logging.debug(f'bar out of bounds')
+    def nextCue(self):
+        logging.debug(f'User OSC Next cue')
+        cueInd = self.cueList.index(self.currentCue)
+        if cueInd < len(self.cueList)-1:
+            nextCue = self.cueList[cueInd+1]
+            self.processNewCueInputOSC(str(nextCue))
+        else:
+            logging.debug(f'cue out of bounds')
+    def prevCue(self):
+        logging.debug(f'User OSC Prev cue')
+        cueInd = self.cueList.index(self.currentCue)
+        if cueInd > 0:
+            prevCue = self.cueList[cueInd-1]
+            self.processNewCueInputOSC(str(prevCue))
+        else:
+            logging.debug(f'cue out of bounds')
+
+              
+
+    
 
     @pyqtSlot(object)
     def rmsCalculator(self, audioFrame):
@@ -578,37 +706,45 @@ class ScoreFollower(QWidget):
         logging.debug(f"close Event")
 
     @pyqtSlot()
-    def startStopRecording(self):
+    def startStopRecording(self, feedback = False):
         # TODO communicate with audio Recorder using slots (if audio recorder is a thread)
         logging.debug(f"before {self.audioRecorder.stopped}")
         self.audioRecorder.startStopStream()
         logging.debug(f"after {self.audioRecorder.stopped}")
         if self.audioRecorder.stopped is True:
             self.qLabInterface.sendStopTrigger()
+            if feedback is True:
+                self.qLabInterface.sendFeedback('stop')
             self.aligner.recording = False
             self.toolbar.playPause.setIcon(QtGui.QIcon(resource_path("resources/svg/rec.svg")))
             logging.debug(f"{len(self.aligner.dursJ)} J iterations with mean running time = {np.mean(self.aligner.dursJ)}")
             logging.debug(f"{len(self.aligner.dursT)} T iterations with mean running time = {np.mean(self.aligner.dursT)}")
         else:
             self.qLabInterface.sendStartTrigger()
+            if feedback is True:
+                self.qLabInterface.sendFeedback('start')
             self.aligner.recording = True
             self.toolbar.playPause.setIcon(QtGui.QIcon(resource_path("resources/svg/pause.svg")))
         logging.debug(f"set aligner.recording to {self.aligner.recording}")
 
     @pyqtSlot()
-    def startRecording(self):
+    def startRecording(self, feedback = False):
         if self.audioRecorder.stopped is True:
             self.audioRecorder.startStopStream()
             self.qLabInterface.sendStartTrigger()
+            if feedback is True:
+                self.qLabInterface.sendFeedback('start')
             self.aligner.recording = True
             self.toolbar.playPause.setIcon(QtGui.QIcon(resource_path("resources/svg/pause.svg")))
 
             logging.debug(f"set aligner.recording to {self.aligner.recording}")
     @pyqtSlot()
-    def stopRecording(self):
+    def stopRecording(self, feedback = False):
         if self.audioRecorder.stopped is False:
             self.audioRecorder.startStopStream()
             self.qLabInterface.sendStopTrigger()
+            if feedback is True:
+                self.qLabInterface.sendFeedback('stop')
             self.aligner.recording = False
             self.toolbar.playPause.setIcon(QtGui.QIcon(resource_path("resources/svg/rec.svg")))
             logging.debug(f"set aligner.recording to {self.aligner.recording}")
@@ -627,9 +763,11 @@ class ScoreFollower(QWidget):
                     if event['type'] == 'cue':
                         self.qLabInterface.sendCueTrigger(event)
                         self.alignGroup.cueDisp.setText(str(event["name"]))
+                        self.currentCue = int(event['name'])
                     elif event['type'] == 'bar':
                         self.qLabInterface.sendBarTrigger(event)
                         self.alignGroup.barDisp.setText(str(event["ind"]))
+                        self.currentBar = int(event['ind'])
         self.lastJ = j
         # spot = [{'pos': np.array(args), 'data': 1}]
         # self.alignGroup.scatter.addPoints(spot)

@@ -15,6 +15,11 @@ class ToolBar(QToolBar):
         self.playPause.setShortcutContext(Qt.ApplicationShortcut)
         self.playPause.setIcon(QIcon(resource_path("resources/svg/rec.svg")))
 
+        self.stop = QAction("Stop (S)",self)
+        self.stop.setShortcut(Qt.Key_S)
+        self.stop.setShortcutContext(Qt.ApplicationShortcut)
+        self.stop.setIcon(QIcon(resource_path("resources/png/stop.png")))
+
         self.reset = QAction("Reset (Ctrl+R)",self)
         self.reset.setShortcut("Ctrl+R")
         self.reset.setShortcutContext(Qt.ApplicationShortcut)
@@ -24,6 +29,7 @@ class ToolBar(QToolBar):
         # self.addAction(self.reset)
         # self.addAction(self.condition)
         # self.addAction(self.preferences)
+        self.addAction(self.stop)
         self.addAction(self.reset)
         # self.addWidget(self.bpmBox)
         # self.addWidget(self.lcd)
