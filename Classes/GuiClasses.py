@@ -528,6 +528,9 @@ class QLabInterface(QObject):
             elif addressParts[1] == "startStop":
                 logging.debug(f"Received /starSTop command from TD")
                 self.main.startStopRecording(feedback = True)
+            elif addressParts[1] == "pause":
+                logging.debug(f"Received /pause command from TD")
+                self.main.stopRecording(feedback = True)
             elif addressParts[1] == "reset":
                 logging.debug(f"Received /reset command from TD")
                 self.main.reset()
