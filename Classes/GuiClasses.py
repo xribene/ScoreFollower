@@ -361,21 +361,21 @@ class QLabInterface(QObject):
     
     def sendFeedback(self, mode, args = None):
         if mode == 'cue':
-            address = f"/feedback/cue/{args}"
+            address = f"/st_status/cue/{args}"
         elif mode == 'bar':
-            address = f"/feedback/bar/{args}"
+            address = f"/st_status/bar/{args}"
         elif mode == 'start':
-            address = f"/feedback/started"
+            address = f"/st_status/started"
         elif mode == 'stop':
-            address = f"/feedback/stopped"
+            address = f"/st_status/stopped"
         elif mode == 'reset':
-            address = f"/feedback/reset"
+            address = f"/st_status/reset"
         elif mode == 'pause':
-            address = f"/feedback/paused"
+            address = f"/st_status/paused"
         elif mode == 'piece':
-            address = f"/feedback/piece/{args}"
+            address = f"/st_status/piece/{args}"
         elif mode == 'section':
-            address = f"/feedback/section/{args}"
+            address = f"/st_status/section/{args}"
         self.oscClient.emit(address, arg = args)
         self.updateClientText(address, args = args)
 
@@ -490,7 +490,7 @@ class QLabInterface(QObject):
         
         # first part should be always "reply"
         print(addressParts)
-        if addressParts[0] != "response":
+        if addressParts[0] != "td_command":
             logging.error(f"TouchResponseCallback got {address} and args {args}")
             raise # TODO not a good idea to raise like this
         
