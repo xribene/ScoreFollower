@@ -340,12 +340,12 @@ class QLabInterface(QObject):
         # self.rspTimer.setSingleShot(True)
         # self.rspTimer.singleShot(3000, self.connectionLost)
     def sendCueTrigger(self, cue):
-        address = f"cue/{int(cue['name'])}"
+        address = f"/sf_sync/cue/{int(cue['name'])}"
         self.oscClient.emit(address, arg = None)
         self.updateClientText(address, args = None)
         
     def sendBarTrigger(self, cue):
-        address = f"/bar/{cue['ind']}"
+        address = f"/sf_sync/bar/{cue['ind']}"
         self.oscClient.emit(address, arg = None)
         self.updateClientText(address, args = None)
 
@@ -361,21 +361,21 @@ class QLabInterface(QObject):
     
     def sendFeedback(self, mode, args = None):
         if mode == 'cue':
-            address = f"/st_status/cue/{args}"
+            address = f"/sf_status/cue/{args}"
         elif mode == 'bar':
-            address = f"/st_status/bar/{args}"
+            address = f"/sf_status/bar/{args}"
         elif mode == 'start':
-            address = f"/st_status/started"
+            address = f"/sf_status/started"
         elif mode == 'stop':
-            address = f"/st_status/stopped"
+            address = f"/sf_status/stopped"
         elif mode == 'reset':
-            address = f"/st_status/reset"
+            address = f"/sf_status/reset"
         elif mode == 'pause':
-            address = f"/st_status/paused"
+            address = f"/sf_status/paused"
         elif mode == 'piece':
-            address = f"/st_status/piece/{args}"
+            address = f"/sf_status/piece/{args}"
         elif mode == 'section':
-            address = f"/st_status/section/{args}"
+            address = f"/sf_status/section/{args}"
         self.oscClient.emit(address, arg = args)
         self.updateClientText(address, args = args)
 
