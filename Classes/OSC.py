@@ -14,6 +14,7 @@ class ClientOSC(QObject):
         self.port = port
         self.client = udp_client.UDPClient(ip, port)
         self.i = 0
+        
     pyqtSlot(object)
     def emit(self, address, arg = None):
         # msg_raw = f"/cue/{self.i}"

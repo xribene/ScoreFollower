@@ -10,7 +10,7 @@ from pyqtgraph import plot
 import pyqtgraph as pg
 
 import logging
-
+import json
 import numpy as np
 
 class QLabBox(QGroupBox):
@@ -581,6 +581,31 @@ class QLabInterface(QObject):
                     self.main.scoreGroup.dropdownPiece.setCurrentIndex(newInd)
                 except:
                     logging.error(f"Could not find {addressParts[2]} in {self.main.pieceNames}")
+            elif addressParts[1] == 'status':
+                '''
+                piece : 
+                section/part : 
+                firstCue :
+                firstBar : 
+                lastCue : 
+                lastBar : 
+                current_cue : 
+                current_bar : 
+                '''
+                # self.main
+                status = {
+                    'piece' : self.main.pieceName,
+                    'part' : self.main.sectionName,
+                    'first_cue' : self.main.cueList[0],
+                    'last_cue' : self.main.cueList[-1],
+                    'first_bar' : self.main.barList[0],
+                    'last_bar' : self.main.barList[-1],
+                    'current_cue' : self.main.currentCue,
+                    'current_bar' : self.main.currentBar
+                }
+                self.oscClient.emit("/sf_status", arg = json.dumps(status))
+                self.updateClientText(address, args = args)
+                
                     
         self.updateListenerText("touchDesigner", addressParts, args)
 
