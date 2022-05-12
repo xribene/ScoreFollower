@@ -812,6 +812,9 @@ class ScoreFollower(QWidget):
 
         self.alignGroup.cueDisp.setText(str(self.status.start_cue))
         self.alignGroup.barDisp.setText(str(self.status.start_bar))
+        self.status.current_bar = self.status.start_bar
+        self.status.current_cue = self.status.start_cue
+        self.status.current_frame = self.status.start_frame
 
         # if self.sender().__class__.__name__ == 'QAction':
         #     self.routerOsc.sendStatus(self.status)
@@ -840,6 +843,9 @@ class ScoreFollower(QWidget):
         if self.status.reset is True:
             self.alignGroup.cueDisp.setText(str(self.status.first_cue))
             self.alignGroup.barDisp.setText(str(self.status.first_bar))
+            self.status.current_bar = self.status.first_bar
+            self.status.current_cue = self.status.first_cue
+            self.status.current_frame = 0
         
         self.audioRecorder.reset()
         self.aligner.reset()
