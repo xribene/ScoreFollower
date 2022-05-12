@@ -5,6 +5,9 @@ import wave
 import numpy as np
 import logging
 from collections import deque
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from main import Status
 #%%
 #%%
 class AudioRecorder(QObject):
@@ -15,12 +18,12 @@ class AudioRecorder(QObject):
     '''
     signalToChromatizer = pyqtSignal(object)
     # signalEnd = pyqtSignal()
-    def __init__(self, queue, rate = 22050, chunk = 4096,
+    def __init__(self, status : 'Status', queue, rate = 22050, chunk = 4096,
                        input_device_index = None, output_device_index = None):
         QObject.__init__(self)
         self.rate = rate
         self.i=0
-        
+        self.status = status
         self.chunk = chunk
         self.queue = queue
         # self.deque = deque(rate*1)
@@ -55,7 +58,7 @@ class AudioRecorder(QObject):
         self.emmiting = True
         self.inputChannels = [-1]
 
-        logging.warning("audio recorder init done")
+        logging.debug("audio recorder init done")
 
 
     def createStream(self, audioSource = "Microphone"):
@@ -173,8 +176,9 @@ class AudioRecorder(QObject):
         mono = sum(data_per_channel) / len(self.inputChannels)
         # print(f"mono shape {mono.shape} ")
         # print(f"len of data_per_channel is {len(data_per_channel)}")
-        if self.emmiting:
-            self.signalToChromatizer.emit(mono)
+        # if self.emmiting:
+        # if not self.status.waiting:
+        self.signalToChromatizer.emit(mono)
         # self.queue.push(data)
         self.frames.append(in_data)
         return (data, pyaudio.paContinue)
@@ -188,6 +192,7 @@ class AudioRecorder(QObject):
         # mono = (data_per_channel[0] + data_per_channel[1])/2
         # print(data.shape)
         mono = sum(data_per_channel) / self.file.getnchannels()
+        # if not self.status.waiting:
         self.signalToChromatizer.emit(mono)
         # self.queue.push(mono)
         # self.i += 1

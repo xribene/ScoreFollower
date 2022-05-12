@@ -7,12 +7,12 @@ import numpy as np
 """
 To generate chromas and cueList for the score AAA
 Use this function in the command line like this 
-    python extractCuesAndChromas.py --path resources/Pieces/{PieceName}/{SectionName}
+    python extractCuesAndChromas.py --path resources/Pieces/{PieceName}/{PartName}
 
 and should contain :
-    1) ONE wav file named {PieceName}_{SectionName}.wav - encoded as int16
-    2) ONE xml file named {PieceName}_{SectionName}.xml - it should include a cues part called "CUES"
-    3) ONE mid file name {PieceName}_{SectionName}.mid
+    1) ONE wav file named {PieceName}_{PartName}.wav - encoded as int16
+    2) ONE xml file named {PieceName}_{PartName}.xml - it should include a cues part called "CUES"
+    3) ONE mid file name {PieceName}_{PartName}.mid
 
 If any of the conditions aren't true, then it raises and error. 
 

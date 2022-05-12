@@ -173,7 +173,7 @@ def getChromas(filePath, sr = 44100, n_fft = 8192, window_length = 2048,
             fft_window = librosa.filters.get_window(windowType, window_length, fftbins=True)
             tuning = 0.0 #librosa.core.pitch.estimate_tuning(y=wav, sr=sr, bins_per_octave=n_chroma)
             if chromafb is None:
-                chromafb = librosa.filters.chroma(sr, n_fft, tuning=tuning, n_chroma=n_chroma)
+                chromafb = librosa.filters.chroma(sr = sr, n_fft = n_fft, tuning = tuning, n_chroma = n_chroma)
 
             if fmin:
                 fft_freqs = librosa.core.fft_frequencies(sr = sr, n_fft = n_fft)

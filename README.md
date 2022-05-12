@@ -62,8 +62,8 @@ All the osc signals received from TouchDesigner should start with */response*. T
 - **/response/reset**
     - Stops the ScoreFollower and sets it to start from the first bar
     - triggers a feedback message on address */feedback/reset*
-- **/response/nextSection**
-    - Stops the ScoreFollower and loads the next section of the same piece
+- **/response/nextPart**
+    - Stops the ScoreFollower and loads the next partof the same piece
     - The succession of the sections is defined in the names of their directory. For example, inside the Jetee folder currently there is *1_ThemeA*. If you want to add the next section, the folders name should be in the form of *2_{sectioName}*
     -  If we are already in the "last" section, then it doesn't have any effect
     - triggers a feedback message on address */feedback/section/{sectionName}*
@@ -74,7 +74,7 @@ All the osc signals received from TouchDesigner should start with */response*. T
     - If we are already in the "last" piece, then it doesn't have any effect
     - triggers a feedback message on address */feedback/section/{sectionName}*
     - triggers a feedback message on address */feedback/piece/{pieceName}*
-- **/response/prevSection**
+- **/response/prevPart**
     - Similar
 - **/response/prevPiece**
     - Similiar

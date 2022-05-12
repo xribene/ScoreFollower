@@ -9,15 +9,19 @@ import time
 import pdb; 
 from offline.utils_offline import cosine_distance
 from scipy.spatial.distance import cosine
-
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from main import Status
 class Aligner(QObject):
     signalToMainThread = pyqtSignal(object)
     signalEnd = pyqtSignal()
-    def __init__(self, referenceChromas, chromaBuffer, n_chroma = 12, 
+    def __init__(self, status : "Status", 
+                        referenceChromas, chromaBuffer, n_chroma = 12, 
                         c = 200, maxRunCount = 3, power = 2,
                         metric = "sqeuclidean", w = 0.3):
         QObject.__init__(self)
         #### parameters ###############################
+        self.status = status
         self.c = c #  
         self.maxRunCount = maxRunCount
         self.metric = metric
@@ -34,12 +38,10 @@ class Aligner(QObject):
         self.lastChroma = np.ones((n_chroma,1)) / np.sqrt(n_chroma) # norm2
         self.zeroChroma = np.ones((n_chroma,1)) / np.sqrt(n_chroma) # norm2
 
-        self.running = False
-        self.reachedEnd = False
-        self.recording = False
-        self.pathOverflow = False
+        self.reachedEnd = False # internal
+        self.pathOverflow = False # internal
         self.reset()
-        self.resetActivated = False # TODO prone to errors. The order shouldn't matter
+        self.resetActivated = False # internal # TODO prone to errors. The order shouldn't matter. It can be fixed 
 
     @pyqtSlot()
     def reset(self):
@@ -90,15 +92,14 @@ class Aligner(QObject):
         self.chromaQueue.queue.clear()
         if self.reachedEnd is True:
             self.reachedEnd = False
-            # self.align() # this is wrong. blocks UI
 
     @pyqtSlot()
     def align(self):
         logging.debug(f"MESAAAAAAAAAAAAA {self.j} {self.frameNumScore-1}")
-        self.running = True
+        self.status.loaded = True
         while(self.j < self.frameNumScore-1 and self.resetActivated is False):
             
-            if self.recording is True:
+            if self.status.recording is True and not self.status.waiting: # used for pausing # TODO use that for waiting for threshold
                 
                 
                 # logging.debug(f"before \n{self.D[:10,:10]}")
@@ -107,7 +108,7 @@ class Aligner(QObject):
                         newChroma = self.chromaQueue.get(timeout=1)
                         self.lastChroma = newChroma
                     except:
-                        if self.recording is True:
+                        if self.status.recording is True:
                             raise
                             # print("UNDERUN EMPTY QUEUE")
                             # newChroma = self.lastChroma
@@ -238,10 +239,10 @@ class Aligner(QObject):
                 elif direction == 'C':
                     self.dursT.append(time.time() - aa)
             else:  
-                # print(f"{self.recording}")
+                # print(f"{self.status.recording}")
                 time.sleep(0.1)
                 # pass
-
+        self.status.loaded = False
         if self.j == self.frameNumScore-1:
             self.reachedEnd = True
             self.signalEnd.emit()
@@ -257,21 +258,21 @@ class Aligner(QObject):
             # pass
             # self.reachedEnd = True
             # self.signalEnd.emit()
-        self.running = False
+        
             
     # @pyqtSlot(int)     
     # def setStartingScoreFrame(self, frame):
-    #     if self.running:
+    #     if self.loaded:
     #         if frame < self.j:
     #             self.j_todo = frame
     #             self.j_todo_flag = True
     #     else:
     #         self.j = frame
-    #         logging.debug(f'not running --> set self.j={frame}')
+    #         logging.debug(f'not loaded --> set self.j={frame}')
             
         # self.j = frame    
         # if isStopped tote to self.j einai safe na ginei apo 0 ws maxScoreFrame
-        # if running tote to self.j einai safe na paei pisw. 
+        # if loaded tote to self.j einai safe na paei pisw. 
         # i.e if self.j = 300 and frame 305  
     ##get direction ##################################
     ##################################################

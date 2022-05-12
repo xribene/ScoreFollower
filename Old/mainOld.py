@@ -119,13 +119,13 @@ class ScoreFollower(QWidget):
 
         
         # TODO a window for the user to choose which score to use
-        self.pieceName = "jetee"
+        self.status.piece= "jetee"
         # get the reference chroma vectors
         
         if self.config.mode == "score" :
-            referenceFile = appctxt.get_resource(f"{self.pieceName}4.mid")
+            referenceFile = appctxt.get_resource(f"{self.status.piece}4.mid")
         elif self.config.mode == "audio" : 
-            referenceFile = appctxt.get_resource(f"{self.pieceName}FF.wav")
+            referenceFile = appctxt.get_resource(f"{self.status.piece}FF.wav")
         
         self.referenceChromas = getChromas(Path(referenceFile), 
                                                   sr = self.config.sr,
@@ -151,7 +151,7 @@ class ScoreFollower(QWidget):
         for i in range(1500,1700):
             repeats[i] += 1
         self.referenceChromas = np.repeat(self.referenceChromas, repeats, axis=0)
-        # self.testWavFile = appctxt.get_resource(f"{self.pieceName}FF.wav")
+        # self.testWavFile = appctxt.get_resource(f"{self.status.piece}FF.wav")
         self.testWavFile = appctxt.get_resource(f"recordedJetee.wav")
 
         self.timer = QtCore.QTimer()
@@ -220,7 +220,7 @@ class ScoreFollower(QWidget):
         logging.debug(f"in invokeAlign")
         self.signalToAligner.emit()
 
-    def startAligner(self):
+    def triggerAligner(self):
         logging.debug("to start timer")
         self.timer.setSingleShot(True)
         # self.timer.timeout.connect(self.invokeAlign)
@@ -249,10 +249,10 @@ class ScoreFollower(QWidget):
         self.aligner.signalToOSCclient.connect(self.oscClient.emit)
         self.signalToAligner.connect(self.aligner.align)
         # gui 
-        self.toolbar.playPause.triggered.connect(self.startStopRecording)
+        self.toolbar.playPause.triggered.connect(self.startPauseAlignment)
         self.aligner.signalEnd.connect(self.stopAligner)
         # ! remove that after testing
-        self.toolbar.save.triggered.connect(self.startAligner)
+        self.toolbar.save.triggered.connect(self.triggerAligner)
         # self.toolbar.preferences.triggered.connect(self.plotCurrentPath)
         self.toolbar.preferences.triggered.connect(self.stopAligner)
 
@@ -264,7 +264,7 @@ class ScoreFollower(QWidget):
         self.oscServer.shutdown()
         logging.debug(f"close Event")
 
-    def startStopRecording(self):
+    def startPauseAlignment(self):
         # TODO communicate with audio Recorder using slots (if audio recorder is a thread)
         self.audioRecorder.startStopStream()
         if self.audioRecorder.stopped is True:

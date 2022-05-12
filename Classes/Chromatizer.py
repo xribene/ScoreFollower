@@ -5,9 +5,13 @@ import logging
 import numpy as np
 import librosa
 from scipy.fft import rfft
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from main import Status
 
 class Chromatizer(QObject):
-    def __init__(self, chromaBuffer, rate = 44100, 
+    def __init__(self, status : "Status",
+                        chromaBuffer, rate = 44100, 
                         chromaType = 'stft', hop_length = 1024, 
                         window_length = 2048,
                         n_fft = 8192, n_chroma = 12,
@@ -16,6 +20,7 @@ class Chromatizer(QObject):
                         chromafb = None, magPower = 1, 
                         defaultRmsThr = 0.0, lowestFreq = 100):
         QObject.__init__(self)
+        self.status = status
         self.chromaBuffer = chromaBuffer
         self.rate = rate
         self.hop_length = hop_length
@@ -28,8 +33,10 @@ class Chromatizer(QObject):
         # TODO win_len - hop_len is not the correct formula here. It only works for 50% overlap
         self.buffer = np.zeros(window_length - hop_length).astype(np.float32)
         self.chromasList = []
-        self.lastChroma = np.ones((n_chroma,1)) / np.sqrt(n_chroma)
+        
         self.zeroChroma = np.zeros((n_chroma,1)) / np.sqrt(n_chroma)
+        self.lastChroma = self.zeroChroma
+        self.onesChroma = np.ones((n_chroma,1)) / np.sqrt(n_chroma)
         self.rmsThr = defaultRmsThr
         self.fft_window = librosa.filters.get_window(windowType, window_length, fftbins=True)
         self.fft_freqs = librosa.core.fft_frequencies(sr = self.rate, n_fft = self.n_fft)
@@ -38,6 +45,8 @@ class Chromatizer(QObject):
         # np.save("fftWindow.npy", self.fft_window)
         self.n_chroma = n_chroma
         self.tuning = 0.0
+        self.rms = 0.0
+        self.a = 0.25
         #%%
         if chromafb:
             self.chromafb = chromafb
@@ -61,30 +70,47 @@ class Chromatizer(QObject):
             self.buffer = y_conc[self.hop_length:]
 
             # mag = np.linalg.norm(y_conc)
-            power = np.mean(np.abs(y_conc) ** 2, axis=0, keepdims=True)
-            rms = np.sqrt(power)
+            # power = np.mean(np.abs(y_conc) ** 2, axis=0, keepdims=True)
+            # rms = np.sqrt(power)
+            power = np.mean(np.abs(y) ** 2, axis=0, keepdims=True)
+            new_rms = np.sqrt(power)
+            self.rms = self.a * new_rms[0] + (1 - self.a) * self.rms
             # logging.debug(f"{np.min(frame)} {np.max(frame)} {frame.dtype}")
             # logging.debug(f"{self.chromaBuffer.qsize()}")
             #
             # TODO see what to do with the threshold here
-            if rms >= self.rmsThr:
-                chunk_win = self.fft_window * y_conc
-                real_fft = rfft(chunk_win, n = self.n_fft)
-                fft_mag = np.abs(real_fft)**self.magPower
-                # shape=(d, t)]
-                # self.tuning = librosa.pitch.estimate_tuning(S=fft_mag.reshape(-1,1), sr=self.rate, bins_per_octave=self.n_chroma)
-                # self.chromafb = librosa.filters.chroma(sr = self.rate, n_fft = self.n_fft, tuning=self.tuning, n_chroma=self.n_chroma)
-                self.chromafb[:,:self.lowestBin] = 0
-                raw_chroma = np.dot(self.chromafb, fft_mag)
-                norm_chroma = librosa.util.normalize(raw_chroma, norm=self.norm, axis=0).reshape(-1,1)
+            if 10 * self.rms >= self.rmsThr:
+                self.status.waiting = False
+            chunk_win = self.fft_window * y_conc
+            real_fft = rfft(chunk_win, n = self.n_fft)
+            fft_mag = np.abs(real_fft)**self.magPower
+            # shape=(d, t)]
+            # self.tuning = librosa.pitch.estimate_tuning(S=fft_mag.reshape(-1,1), sr=self.rate, bins_per_octave=self.n_chroma)
+            # self.chromafb = librosa.filters.chroma(sr = self.rate, n_fft = self.n_fft, tuning=self.tuning, n_chroma=self.n_chroma)
+            self.chromafb[:,:self.lowestBin] = 0
+            raw_chroma = np.dot(self.chromafb, fft_mag)
+            norm_chroma = librosa.util.normalize(raw_chroma, norm=self.norm, axis=0).reshape(-1,1)
+            self.lastChroma = norm_chroma
                 # logging.debug(f"norm Chroma shape is {norm_chroma.shape}")
                 # chromaFrames.append(norm_chroma)
                 # print(f"chroma {np.transpose(norm_chroma)}")
-            else:
-                norm_chroma = self.zeroChroma
-                # print(f"zero chroma {np.transpose(norm_chroma)}")
-            # self.chromasList.append(norm_chroma)
-            self.chromaBuffer.put_nowait(norm_chroma)
+            # else:
+                # norm_chroma = self.zeroChroma
+                # norm_chroma = self.onesChroma
+                # norm_chroma = self.lastChroma
+
+                # chunk_win = self.fft_window * y_conc
+                # real_fft = rfft(chunk_win, n = self.n_fft)
+                # fft_mag = np.abs(real_fft)**self.magPower
+                # # shape=(d, t)]
+                # # self.tuning = librosa.pitch.estimate_tuning(S=fft_mag.reshape(-1,1), sr=self.rate, bins_per_octave=self.n_chroma)
+                # # self.chromafb = librosa.filters.chroma(sr = self.rate, n_fft = self.n_fft, tuning=self.tuning, n_chroma=self.n_chroma)
+                # self.chromafb[:,:self.lowestBin] = 0
+                # raw_chroma = np.dot(self.chromafb, fft_mag)
+                # norm_chroma = librosa.util.normalize(raw_chroma, norm=self.norm, axis=0).reshape(-1,1)
+
+            if not self.status.waiting:
+                self.chromaBuffer.put_nowait(norm_chroma)
             # self.signalToOnlineDTW.emit(chroma)
         # ! no need for that. Aligner can take the queue as input argument
         # @pyqtSlot()

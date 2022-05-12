@@ -151,13 +151,13 @@ class ScoreFollower(QWidget):
 
         
         # TODO a window for the user to choose which score to use
-        self.pieceName = "jetee"
+        self.status.piece= "jetee"
 
-        self.testWavFile = appctxt.get_resource(f"{self.pieceName}FF.wav")
+        self.testWavFile = appctxt.get_resource(f"{self.status.piece}FF.wav")
         # self.testWavFile = appctxt.get_resource(f"recordedJetee.wav")
 
         self.timer = QtCore.QTimer()
-        midiFile = appctxt.get_resource(f"{self.pieceName}4.mid")
+        midiFile = appctxt.get_resource(f"{self.status.piece}4.mid")
         self.midiChromas = getReferenceChromas(Path(midiFile), 
                                                   sr = self.config.sr,
                                                   n_fft = self.config.n_fft, 
@@ -199,13 +199,13 @@ class ScoreFollower(QWidget):
         self.audioRecorder.signalToChromatizer.connect(self.updatePlots)
 
         self.audioRecorder.signalEnd.connect(self.closeEvent)
-        self.toolbar.playPause.triggered.connect(self.startStopRecording)
+        self.toolbar.playPause.triggered.connect(self.startPauseAlignment)
 
     def closeEvent(self, event):
         self.audioRecorder.closeStream()
         logging.debug(f"close Event")
 
-    def startStopRecording(self):
+    def startPauseAlignment(self):
         # TODO communicate with audio Recorder using slots (if audio recorder is a thread)
         self.audioRecorder.startStopStream()
         if self.audioRecorder.stopped is True:
