@@ -270,7 +270,7 @@ class AlignBox(QGroupBox):
         self.cueLabel.setObjectName('cue')
 
         self.barVal = QtGui.QIntValidator()
-        self.barVal.setBottom(0)
+        self.barVal.setBottom(1)
         # self.barVal.setTop(1000.0)
         self.barDisp = QLineEdit(self)
         self.barDisp.setEnabled(True)
@@ -278,13 +278,13 @@ class AlignBox(QGroupBox):
         self.barDisp.setObjectName("barDisp")
         self.barDisp.setValidator(self.barVal)
 
-        self.cueVal = QtGui.QIntValidator()
-        self.cueVal.setBottom(0)
+        # self.cueVal = QtGui.QIntValidator()
+        # self.cueVal.setBottom(0)
         # self.curVal.setT
         self.cueDisp = QLineEdit(self)
         self.cueDisp.setText(str(0))
         self.cueDisp.setObjectName("cueDisp")
-        self.cueDisp.setValidator(self.cueVal)
+        # self.cueDisp.setValidator(self.cueVal)
 
         self.barLabel.setBuddy(self.barDisp)
         self.cueLabel.setBuddy(self.cueDisp)
@@ -316,6 +316,7 @@ class AlignBox(QGroupBox):
 
 
 class RouterOsc(QObject):
+    # ! TODO replace self.main.status with self.status
     signalNewBarOsc = pyqtSignal(str)
     signalNewCueOsc = pyqtSignal(str)
     def __init__(self, config, status : "Status", oscClient : "ClientOSC", oscListener : "ServerOSC", oscBox : "OscBox", main : "ScoreFollower"):
@@ -351,15 +352,17 @@ class RouterOsc(QObject):
     #     # self.rspTimer.setSingleShot(True)
     #     # self.rspTimer.singleShot(3000, self.connectionLost)
 
-    def sendCueTrigger(self, cue):
-        address = f"/sf_sync/cue/{int(cue['name'])}"
-        self.oscClient.emit(address, arg = int(cue['name']))
-        self.updateClientText(address, args = int(cue['name']))
+    def sendCueTrigger(self, event):
+        # cue is string
+        address = f"/sf_sync/cue/{event['name']}"
+        self.oscClient.emit(address, arg = event['name'])
+        self.updateClientText(address, args = event['name'])
         
-    def sendBarTrigger(self, cue):
-        address = f"/sf_sync/bar/{cue['ind']}"
-        self.oscClient.emit(address, arg = cue['ind'])
-        self.updateClientText(address, args = cue['ind'])
+    def sendBarTrigger(self, event):
+        # bar is int
+        address = f"/sf_sync/bar/{event['ind']}"
+        self.oscClient.emit(address, arg = event['ind'])
+        self.updateClientText(address, args = event['ind'])
     
     @pyqtSlot()
     def sendStatus(self, status : "Status" = None):
@@ -373,6 +376,18 @@ class RouterOsc(QObject):
         self.oscClient.emit("/sf_status", arg = json.dumps(status.__dict__))
         self.updateClientText("/sf_status", args = status.__dict__)
 
+    def sendRms(self, rmsValue):
+        if self.main.status.recording:
+            address = f"/sf_rt/rms/{rmsValue}"
+            self.oscClient.emit(address, arg = rmsValue)
+            print(f'sent rms {rmsValue}')
+        else:
+            address = f"/sf_rt/rms/{0.0}"
+            self.oscClient.emit(address, arg = 0.0)
+            print(f'sent rms {0.0}')
+
+        
+        # self.updateClientText(address, args = event['ind'])
 
     # def sendStartTrigger(self):
     #     address = f"/start"
@@ -606,6 +621,12 @@ class RouterOsc(QObject):
                     self.main.scoreGroup.dropdownPiece.setCurrentIndex(newInd)
                 except:
                     logging.error(f"Could not find {addressParts[2]} in {self.main.pieceNames}")
+            
+            elif addressParts[1] == "setRmsThr":
+                thr = addressParts[2]
+                self.main.updateRmsThrOsc(thr)
+                logging.debug(f"Received osc command - new Threshold = {addressParts[2]}")
+
             elif addressParts[1] == 'status':
                 self.sendStatus(self.status)
 

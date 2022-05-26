@@ -74,6 +74,8 @@ def getCuesDict(filePath, sr = 44100, hop_length = 1024):
 
     # timeSign = score[music21.meter.TimeSignature][0]
     timeSign = score.recurse().getElementsByClass(music21.meter.TimeSignature)[0]
+    print(f'Time signature found : {timeSign}')
+    
     secsPerSixteenth = secsPerQuarter / 4
     scoreDurQuarter = score.duration.quarterLength
     # print(f"score duration {secsPerQuarter*scoreDurQuarter}")

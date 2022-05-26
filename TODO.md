@@ -51,6 +51,12 @@
 - accept feedback messages from user 
 
 
+- Find a the piece that doesn't work (number 6)
+- Make sure that themaA still works
+- Create new renderings using musescore. Does it work now ? 
+- Check also what happens in offline DTW
+
+
 
 
 

@@ -73,13 +73,13 @@ class Status:
         self.piece = None
         self.part = None
         self.current_bar = -1
-        self.current_cue = -1
-        self.first_cue = -1
-        self.last_cue = -1
+        self.current_cue = '-1'
+        self.first_cue = '-1'
+        self.last_cue = '-1'
         self.first_bar = -1
         self.last_bar = -1
         self.start_bar = -1 # reset will set start_bar = first_bar, while stop will not change it.
-        self.start_cue = -1
+        self.start_cue = '-1'
         self.start_frame = -1
         self.current_frame = -1
         self.paused = False # not running because user hit pause 
@@ -104,7 +104,8 @@ class ScoreFollower(QWidget):
         self.config = Params(resource_path("resources/config.json"))
         self.setObjectName("ScoreFollower")
         self.rms = 0.0
-        self.a = 0.25
+        self.a = 0.25 # weight for exp averaging of rms values
+        self.rmsUpdatesCounter = 0
         self.td = td
         
 
@@ -350,48 +351,30 @@ class ScoreFollower(QWidget):
                     
                 elif event['type'] == 'cue':
                     self.cueFrameList.append(frame)
-                    self.cue2frameDict[int(event['name'])] = frame
-                    self.frame2cueDict[frame] = int(event['name'])
-                    self.cueList.append(int(event['name']))
+                    self.cue2frameDict[event['name']] = frame
+                    self.frame2cueDict[frame] = event['name']
+                    self.cueList.append(event['name'])
 
 
         self.status.start_bar = min(self.barList)
-        self.status.start_cue = min(self.cueList)
+        self.status.start_cue = self.cueList[0]
         self.status.start_frame = 0
         self.status.current_bar = min(self.barList)
-        self.status.current_cue = min(self.cueList)
+        self.status.current_cue = self.cueList[0]
         self.status.current_frame = 0
         self.status.first_bar = min(self.barList)
         self.status.last_bar = max(self.barList)
-        self.status.first_cue = min(self.cueList)
-        self.status.last_cue = max(self.cueList)
+        self.status.first_cue = self.cueList[0]
+        self.status.last_cue = self.cueList[-1]
 
         self.status.paused = False
         self.status.stopped = True
         self.status.reset = True
         # self.status.running = False
         self.status.waiting = True
-        self.alignGroup.cueDisp.setText(str(self.status.first_cue))
+        self.alignGroup.cueDisp.setText(self.status.first_cue)
         self.alignGroup.barDisp.setText(str(self.status.first_bar))
-        # get the reference chroma vectors
-        # if self.config.mode == "score" :
-        #     referenceFile = resource_path(f"resources/Pieces/{self.status.piece}/{self.status.piece}.mid")
-        # elif self.config.mode == "audio" : 
-        #     referenceFile = resource_path(f"resources/Pieces/{self.status.piece}/{self.status.piece}.wav")
-        
-        # self.referenceChromas = getChromas(Path(referenceFile), 
-        #                                           sr = self.config.sr,
-        #                                           n_fft = self.config.n_fft, 
-        #                                           hop_length = self.config.hop_length,
-        #                                           window_length = self.config.window_length,
-        #                                           chromaType = self.config.chromaType,
-        #                                           n_chroma = self.config.n_chroma,
-        #                                           norm = self.config.norm,
-        #                                           normAudio = True,
-        #                                           windowType = self.config.window_type,
-        #                                           chromafb = None,
-        #                                           magPower = self.config.magPower
-        #                                           )
+
         self.referenceChromas = np.load(resource_path(f"resources/Pieces/{self.status.piece}/{self.status.part}/referenceAudioChromas_{self.status.piece}_{partNameNoNumber}.npy"))
         if self.setupFinished:
             self.aligner.referenceChromas = self.referenceChromas
@@ -416,7 +399,7 @@ class ScoreFollower(QWidget):
         ax.setGrid(255*0.2)
 
         ax2 = self.alignGroup.plot.getAxis('right')
-        ax2.setTicks([[(v, str(self.frame2cueDict[v])) for v in self.cueFrameList ] ]) # , [(v, str(v)) for v in cueFrameList ]
+        ax2.setTicks([[(v, self.frame2cueDict[v]) for v in self.cueFrameList ] ]) # , [(v, str(v)) for v in cueFrameList ]
 
         # send feedback to TD
         # self.routerOsc.sendFeedback("piece", self.status.piece)
@@ -564,6 +547,11 @@ class ScoreFollower(QWidget):
     def updateRmsThr(self):
         self.chromatizer.rmsThr = float(self.audioGroup.rmsThrDisp.text())
         logging.debug(f'User set RMS THR to {float(self.audioGroup.rmsThrDisp.text())}')
+    
+    def updateRmsThrOsc(self, newThr : str):
+        self.chromatizer.rmsThr = float(newThr)
+        self.audioGroup.rmsThrDisp.setText(newThr)
+        logging.debug(f'User oscTD set RMS THR to {float(self.audioGroup.rmsThrDisp.text())}')
 
     # @pyqtSlot()
     # def processNewBarInput(self, ):
@@ -604,13 +592,13 @@ class ScoreFollower(QWidget):
         
         logging.debug(f'User set cue {newCue}')
         try:
-            frame = self.bar2frameDict[int(newCue)]
+            frame = self.cue2frameDict[newCue]
         except:
             logging.debug(f'{newCue} is not a valid cue number')
             return
-        self.status.current_cue = int(newCue)
+        self.status.current_cue = newCue
         self.status.current_frame = frame
-        frame = self.cue2frameDict[int(newCue)]
+        frame = self.cue2frameDict[newCue]
         self.aligner.j_todo = frame
         self.aligner.j_todo_flag = True
         # self.routerOsc.sendFeedback('cue', int(newCue))
@@ -618,7 +606,7 @@ class ScoreFollower(QWidget):
         # if is playing then don't update lastStartedBar
         if self.audioRecorder.stopped == True:
             logging.debug(f'updating lastStartingCue to {newCue}')
-            self.status.start_cue = int(newCue)
+            self.status.start_cue = newCue
             # self.status.start_bar = self.frame2barDict[frame]
             self.status.start_frame = frame
         self.routerOsc.sendStatus(self.status)
@@ -652,21 +640,21 @@ class ScoreFollower(QWidget):
     def processNewCueInputOSC(self, cue):
         logging.debug(f'User OSC set cue {cue}')  
         try:
-            frame = self.cue2frameDict[int(cue)]
+            frame = self.cue2frameDict[cue]
         except:
             logging.debug(f'{cue} is not a valid cue number')
             return
-        self.status.current_cue = int(cue)
+        self.status.current_cue = cue
         self.status.current_frame = frame
         self.alignGroup.cueDisp.setText(cue)
-        frame = self.cue2frameDict[int(cue)]
+        frame = self.cue2frameDict[cue]
         self.aligner.j_todo = frame
         self.aligner.j_todo_flag = True
         # self.routerOsc.sendFeedback('cue', int(cue))
         
         if self.status.recording == False:
             logging.debug(f'updating lastStartingCue to {cue}')
-            self.status.start_cue = int(cue)
+            self.status.start_cue = cue
             # self.status.start_bar = self.frame2barDict[frame]
             self.status.start_frame = frame
         self.routerOsc.sendStatus(self.status)
@@ -692,7 +680,7 @@ class ScoreFollower(QWidget):
         cueInd = self.cueList.index(self.status.current_cue)
         if cueInd < len(self.cueList)-1:
             nextCue = self.cueList[cueInd+1]
-            self.processNewCueInputOSC(str(nextCue))
+            self.processNewCueInputOSC(nextCue)
         else:
             logging.debug(f'cue out of bounds')
     def prevCue(self):
@@ -704,7 +692,7 @@ class ScoreFollower(QWidget):
             prevCue = self.cueList[cueInd-1]
             logging.debug(f'message prevCue {prevCue}')
             
-            self.processNewCueInputOSC(str(prevCue))
+            self.processNewCueInputOSC(prevCue)
         else:
             logging.debug(f'cue out of bounds')
 
@@ -714,12 +702,17 @@ class ScoreFollower(QWidget):
 
     @pyqtSlot(object)
     def rmsCalculator(self, audioFrame):
-        y = audioFrame.astype('float32') / 32768.0
-        power = np.mean(np.abs(y) ** 2, axis=0, keepdims=True)
-        new_rms = np.sqrt(power)
-        self.rms = self.a * new_rms[0] + (1 - self.a) * self.rms
-        self.audioGroup.rmsDisp.setText(f"{self.rms*10:.2f}")
-        # logging.debug(f'rms value is {self.rms*10}')
+        self.rmsUpdatesCounter += 1
+        if self.rmsUpdatesCounter % 2 == 0 and self.status.recording:
+            self.rmsUpdatesCounter = 0
+            y = audioFrame.astype('float32') / 32768.0
+            power = np.mean(np.abs(y) ** 2, axis=0, keepdims=True)
+            new_rms = np.sqrt(power)
+            self.rms = self.a * new_rms[0] + (1 - self.a) * self.rms
+            self.audioGroup.rmsDisp.setText(f"{self.rms*10:.2f}")
+            # print(f"{new_rms*10}")
+            self.routerOsc.sendRms(self.rms*10)
+            # logging.debug(f'rms value is {self.rms*10}')
         
 
     @pyqtSlot()
@@ -786,16 +779,19 @@ class ScoreFollower(QWidget):
     def pauseAlignment(self, feedback = True):
         if self.audioRecorder.stopped is False:
             self.audioRecorder.startStopStream()
+            
             self.toolbar.playPause.setIcon(QtGui.QIcon(resource_path("resources/svg/rec.svg")))
             logging.debug(f"set aligner.recording to {self.status.recording}")
             self.status.recording = False 
             self.status.paused = True
             # self.status.waiting = False
-            print(f"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA {self.sender().__class__.__name__}")
+            # print(f"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA {self.sender().__class__.__name__}")
             # if self.sender().__class__.__name__ in ['ServerOSC', 'QAction']:
             #     self.routerOsc.sendStatus(self.status)
             if feedback :
                 self.routerOsc.sendStatus(self.status)
+            self.audioGroup.rmsDisp.setText(f"{0*10:.2f}")
+            self.routerOsc.sendRms(0.0)
             
 
     @pyqtSlot()
@@ -810,7 +806,7 @@ class ScoreFollower(QWidget):
         self.aligner.j_todo = self.status.start_frame
         self.aligner.j_todo_flag = True
 
-        self.alignGroup.cueDisp.setText(str(self.status.start_cue))
+        self.alignGroup.cueDisp.setText(self.status.start_cue)
         self.alignGroup.barDisp.setText(str(self.status.start_bar))
         self.status.current_bar = self.status.start_bar
         self.status.current_cue = self.status.start_cue
@@ -820,6 +816,9 @@ class ScoreFollower(QWidget):
         #     self.routerOsc.sendStatus(self.status)
         if feedback :
             self.routerOsc.sendStatus(self.status)
+
+        self.audioGroup.rmsDisp.setText(f"{0*10:.2f}")
+        self.routerOsc.sendRms(0.0)
         # self.status.reset = False
         # self.status.stopped = True
         
@@ -841,7 +840,7 @@ class ScoreFollower(QWidget):
         QThread.msleep(1000) # TODO do I need that ? 
 
         if self.status.reset is True:
-            self.alignGroup.cueDisp.setText(str(self.status.first_cue))
+            self.alignGroup.cueDisp.setText(self.status.first_cue)
             self.alignGroup.barDisp.setText(str(self.status.first_bar))
             self.status.current_bar = self.status.first_bar
             self.status.current_cue = self.status.first_cue
@@ -877,6 +876,8 @@ class ScoreFollower(QWidget):
         if feedback:
             self.routerOsc.sendStatus(self.status)
         
+        self.audioGroup.rmsDisp.setText(f"{0*10:.2f}")
+        self.routerOsc.sendRms(0.0)
 
         # self.timer.stop()
         # print(np.mean(self.aligner.durs))
@@ -896,12 +897,12 @@ class ScoreFollower(QWidget):
                 for event in events:
                     if event['type'] == 'cue':
                         self.routerOsc.sendCueTrigger(event)
-                        self.alignGroup.cueDisp.setText(str(event["name"]))
-                        self.status.current_cue = int(event['name'])
+                        self.alignGroup.cueDisp.setText(event["name"])
+                        self.status.current_cue = event['name']
                     elif event['type'] == 'bar':
                         self.routerOsc.sendBarTrigger(event)
                         self.alignGroup.barDisp.setText(str(event["ind"]))
-                        self.status.current_bar = int(event['ind'])
+                        self.status.current_bar = event['ind']
         self.lastJ = j
         # spot = [{'pos': np.array(args), 'data': 1}]
         # self.alignGroup.scatter.addPoints(spot)

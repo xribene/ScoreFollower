@@ -24,28 +24,47 @@ The parameters of the chroma extraction are in resources/config.json
 """
 #%%
 parser = argparse.ArgumentParser()
-parser.add_argument('--path', type=str, nargs='+',
+parser.add_argument('--path', type=str,
                     help='A path that contains the xml score and the wav audio file')
 parser.add_argument('--fmin', type=int,  default=0,
                     help='Cut freq of low pass filter')
-args = parser.parse_args()
-path = Path(args.path[0])
-#%%
-# path = Path("resources/Pieces/Piece/")
-pieceName = path.parts[-2]
-sectionName = "".join(path.parts[-1].split("_")[1:])
-wavFile = returnCorrectFile(path, "wav")
-midFile = returnCorrectFile(path, "mid")
-xmlFile = returnCorrectFile(path, "xml")
 
+parser.add_argument('--wav', type = str)
+parser.add_argument('--mid', type = str)
+parser.add_argument('--xml', type = str)
+#%%
+args = parser.parse_args()
+if args.path:
+    path = Path(args.path)
+    pieceName = path.parts[-2]
+    sectionName = "".join(path.parts[-1].split("_")[1:])
+    wavFile = returnCorrectFile(path, "wav")
+    midFile = returnCorrectFile(path, "mid")
+    xmlFile = returnCorrectFile(path, "xml")
+
+elif args.wav and args.xml:
+    wavFile = Path(args.wav)
+    # midFile = Path(args.mid)
+    xmlFile = Path(args.xml)
+    pieceName = 'unk'
+    sectionName = 'unk'
+    path = Path.cwd()
+
+else:
+    print(f'You need to provide either a path, or the file names explicitly')
+#%%
 config = Params("resources/config.json")
 
 if args.fmin == 0:
     args.fmin = None
 
+# args.xml = 'resources/Pieces/ChristosTests/06_DateThemeA/JetTEST_DateThemeA_musescoreExport.musicxml'
+# args.xml = 'resources/Pieces/ChristosTests/06_DateThemeA/JetTEST_DateThemeA_musescoreExport.xml'
+# args.wav = 'resources/Pieces/ChristosTests/06_DateThemeA/MusescoreRender22k.wav'
 cuesDict = getCuesDict(filePath = xmlFile, 
-                                    sr = config.sr, 
+                                    sr = config.sr, # this is 22k
                                     hop_length = config.hop_length)
+#%%
 referenceChromas = getChromas(wavFile, 
                                 sr = config.sr,
                                 n_fft = config.n_fft, 

@@ -80,6 +80,7 @@ class Chromatizer(QObject):
             #
             # TODO see what to do with the threshold here
             if 10 * self.rms >= self.rmsThr:
+                # TODO send an updated status where waiting = False
                 self.status.waiting = False
             chunk_win = self.fft_window * y_conc
             real_fft = rfft(chunk_win, n = self.n_fft)
