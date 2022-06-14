@@ -39,6 +39,7 @@ import encodings
 from librosa import * 
 # from offline.utils_offline import Params, getChromas, getCuesDict
 from offline.utils_offline import *
+import time
 #####################################################
 ## Qt app instantiation -> thread setup
 #####################################################
@@ -78,10 +79,12 @@ class Status:
         self.last_cue = '-1'
         self.first_bar = -1
         self.last_bar = -1
+        self.last_frame = -1
         self.start_bar = -1 # reset will set start_bar = first_bar, while stop will not change it.
         self.start_cue = '-1'
         self.start_frame = -1
         self.current_frame = -1
+        self.current_bpm = 0
         self.paused = False # not running because user hit pause 
         self.stopped = False # not running because user hit stop
         self.loaded = False # if true, aligner's align has been called ( we don't know if we are inside the while loop)
@@ -106,6 +109,9 @@ class ScoreFollower(QWidget):
         self.rms = 0.0
         self.a = 0.25 # weight for exp averaging of rms values
         self.rmsUpdatesCounter = 0
+        self.alignmentUpdatesCounter = 0
+        self.lastTime = None
+        self.lastFrame = 0
         self.td = td
         
 
@@ -366,7 +372,7 @@ class ScoreFollower(QWidget):
         self.status.last_bar = max(self.barList)
         self.status.first_cue = self.cueList[0]
         self.status.last_cue = self.cueList[-1]
-
+        
         self.status.paused = False
         self.status.stopped = True
         self.status.reset = True
@@ -379,6 +385,8 @@ class ScoreFollower(QWidget):
         if self.setupFinished:
             self.aligner.referenceChromas = self.referenceChromas
         
+        self.status.last_frame = self.referenceChromas.shape[0] 
+
         # np.save("cuesDict.npy", self.cuesDict)
         # np.save("referenceChromas.npy", self.referenceChromas)
         # logging.debug(f"reference Chromas shape is {self.referenceChromas.shape}")
@@ -711,7 +719,8 @@ class ScoreFollower(QWidget):
             self.rms = self.a * new_rms[0] + (1 - self.a) * self.rms
             self.audioGroup.rmsDisp.setText(f"{self.rms*10:.2f}")
             # print(f"{new_rms*10}")
-            self.routerOsc.sendRms(self.rms*10)
+            # self.routerOsc.sendRms(self.rms*10)
+            self.routerOsc.sendRealTime(self.rms*10, 'rms')
             # logging.debug(f'rms value is {self.rms*10}')
         
 
@@ -903,7 +912,24 @@ class ScoreFollower(QWidget):
                         self.routerOsc.sendBarTrigger(event)
                         self.alignGroup.barDisp.setText(str(event["ind"]))
                         self.status.current_bar = event['ind']
+        # ! TODO should this be intedent right once (probably)
         self.lastJ = j
+
+        self.routerOsc.sendRealTime(j/self.status.last_frame, 'progress')
+        if self.alignmentUpdatesCounter % 43 == 0 and self.alignmentUpdatesCounter > 0:
+            curTime = time.time()
+            if self.lastTime:
+                
+                secsElapsed = curTime - self.lastTime
+                framesElapsedTheoretical = (secsElapsed * 22050/512 )
+                framesElapsedActual = j - self.lastFrame
+                self.status.current_bpm = framesElapsedActual / framesElapsedTheoretical
+                
+                self.lastFrame = j
+                self.routerOsc.sendRealTime(self.status.current_bpm, 'bpm')
+                
+            self.lastTime = curTime
+        self.alignmentUpdatesCounter += 1
         # spot = [{'pos': np.array(args), 'data': 1}]
         # self.alignGroup.scatter.addPoints(spot)
         # self.graphWidget.plot(line[:,0], line[:,1])

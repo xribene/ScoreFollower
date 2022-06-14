@@ -56,6 +56,25 @@
 - Create new renderings using musescore. Does it work now ? 
 - Check also what happens in offline DTW
 
+# DONE 5/27/2022
+
+- print xml and wav durations when calculating chromas
+
+- send osc "channel" data ( > 10FPS)
+    - progress bar percentage
+    - rms audio values
+    - current BPM
+    
+- real time tempo estimation
+    - each frame corresponds to 512audio samples = 23ms
+    - update it every second. I know how many frames per second (43.0664)
+    - every x updates, I check how many seconds passed (dd), and how many frames passed (ff)
+    - for 1s --> 43.0064 frames
+    - for dd --> ddF
+    - newBPM = ddF/ff * initialBPM
+    - Done, but I store it in status, while it should be sent often "channel", along with progress bar.
+
+realtime channel . send current bpm / current percentage progress / rms val
 
 
 

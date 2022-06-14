@@ -61,11 +61,11 @@ if args.fmin == 0:
 # args.xml = 'resources/Pieces/ChristosTests/06_DateThemeA/JetTEST_DateThemeA_musescoreExport.musicxml'
 # args.xml = 'resources/Pieces/ChristosTests/06_DateThemeA/JetTEST_DateThemeA_musescoreExport.xml'
 # args.wav = 'resources/Pieces/ChristosTests/06_DateThemeA/MusescoreRender22k.wav'
-cuesDict = getCuesDict(filePath = xmlFile, 
+cuesDict, xmlSecondsDuration = getCuesDict(filePath = xmlFile, 
                                     sr = config.sr, # this is 22k
                                     hop_length = config.hop_length)
 #%%
-referenceChromas = getChromas(wavFile, 
+referenceChromas, wavSecondsDuration = getChromas(wavFile, 
                                 sr = config.sr,
                                 n_fft = config.n_fft, 
                                 hop_length = config.hop_length,
@@ -80,6 +80,9 @@ referenceChromas = getChromas(wavFile,
                                 fmin = args.fmin,
                                 useZeroChromas = bool(config.useZeroChromas)
                                 )
+
+print(f'XML duration : {xmlSecondsDuration} seconds')
+print(f'WAV duration : {wavSecondsDuration} seconds')
 
 chromasFile = path/f"referenceAudioChromas_{pieceName}_{sectionName}.npy"
 if chromasFile.is_file():

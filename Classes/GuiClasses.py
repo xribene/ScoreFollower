@@ -380,7 +380,7 @@ class RouterOsc(QObject):
         if self.main.status.recording:
             address = f"/sf_rt/rms/{rmsValue}"
             self.oscClient.emit(address, arg = rmsValue)
-            print(f'sent rms {rmsValue}')
+            # print(f'sent rms {rmsValue}')
         else:
             address = f"/sf_rt/rms/{0.0}"
             self.oscClient.emit(address, arg = 0.0)
@@ -389,6 +389,17 @@ class RouterOsc(QObject):
         
         # self.updateClientText(address, args = event['ind'])
 
+    def sendRealTime(self, value, tag : str):
+        if tag == 'rms' : 
+            self.sendRms(value)
+        elif tag == 'progress' : 
+            address = f"/sf_rt/progress/{value}"
+            self.oscClient.emit(address, arg = value)
+            # print(f'sent progress {rmsValue}')
+        elif tag == 'bpm' : 
+            address = f"/sf_rt/bpm/{value}"
+            self.oscClient.emit(address, arg = value)
+            # print(f'sent rms {rmsValue}')
     # def sendStartTrigger(self):
     #     address = f"/start"
     #     # self.oscClient.emit(address, arg = None)

@@ -95,9 +95,12 @@ def getCuesDict(filePath, sr = 44100, hop_length = 1024):
         frame2CueDict[currentFrame].append({"type":"cue","ind":i,"name":cue.content})
 
     for off, m in measureMap.items():
+        if m[0].number == 0:
+            logging.warning(f"Be carefull, the number of the first measure is '0'. Check for pickup measures")
+            raise
         currentFrame = int(np.ceil(off / chromaFrameQuarters))
         frame2CueDict[currentFrame].append({"type":"bar","ind":m[0].number})
-    return dict(frame2CueDict)
+    return dict(frame2CueDict), secsPerQuarter * scoreDurQuarter
 
 def getChromas(filePath, sr = 44100, n_fft = 8192, window_length = 2048,
                         hop_length = 1024, chromaType = "stft", n_chroma = 12,
@@ -204,7 +207,7 @@ def getChromas(filePath, sr = 44100, n_fft = 8192, window_length = 2048,
 
             chromagram = np.array(chromaFrames)
    
-    return chromagram   
+    return chromagram, len(wav) / sr
 
 def getChromaFrame(chunk, chromafb, fft_window, n_fft = 4096,norm=2, magPower = 1):
     chunk_win = fft_window * chunk

@@ -43,6 +43,7 @@ class ServerOSC(QObject):
         disp = dispatcher.Dispatcher()
         disp.map("/reply/*", self.replyReceiver) # qlab 
         disp.map("/td_command/*", self.responseReceiver) # touchDesigner (custom)
+        # disp.map("/daw/*", self.)
         disp.set_default_handler(self.globalReceiver)
         # disp.map
         self.server = osc_server.BlockingOSCUDPServer((ip, port), disp)
