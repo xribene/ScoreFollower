@@ -169,7 +169,7 @@ class AudioBox(QGroupBox):
         rmsValidator.setNotation(0)
         rmsValidator.setBottom(0.0)
         rmsValidator.setTop(1000.0)
-        rmsValidator.setDecimals(2)
+        rmsValidator.setDecimals(4)
         self.rmsThrDisp.setValidator(rmsValidator)
         self.rmsThrDisp.setText(str(self.config.defaultRmsThr))
 
