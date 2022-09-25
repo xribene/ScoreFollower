@@ -85,6 +85,7 @@ class Status:
         self.start_frame = -1
         self.current_frame = -1
         self.current_bpm = 0
+        self.rms_threshold = 0.0
         self.paused = False # not running because user hit pause 
         self.stopped = False # not running because user hit stop
         self.loaded = False # if true, aligner's align has been called ( we don't know if we are inside the while loop)
@@ -559,6 +560,7 @@ class ScoreFollower(QWidget):
     def updateRmsThrOsc(self, newThr : str):
         self.chromatizer.rmsThr = float(newThr)
         self.audioGroup.rmsThrDisp.setText(newThr)
+        self.status.rms_threshold = newThr
         logging.debug(f'User oscTD set RMS THR to {float(self.audioGroup.rmsThrDisp.text())}')
 
     # @pyqtSlot()
