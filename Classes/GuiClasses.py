@@ -636,7 +636,7 @@ class RouterOsc(QObject):
             elif addressParts[1] == "setPart":
                 logging.debug(f"Received {addressParts} command from TD")
                 try:
-                    newInd = self.main.pieceNames.index(addressParts[2])
+                    newInd = self.main.partNames.index(addressParts[2])
                     self.main.pauseAlignment()
                     # self.main.status.piece = self.main.pieceNames[newInd] # TODO no need for that. The next command is gonna do it
                     self.main.scoreGroup.dropdownPart.setCurrentIndex(newInd)
