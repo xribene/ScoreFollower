@@ -633,6 +633,16 @@ class RouterOsc(QObject):
                 except:
                     logging.error(f"Could not find {addressParts[2]} in {self.main.pieceNames}")
             
+            elif addressParts[1] == "setPart":
+                logging.debug(f"Received {addressParts} command from TD")
+                try:
+                    newInd = self.main.pieceNames.index(addressParts[2])
+                    self.main.pauseAlignment()
+                    # self.main.status.piece = self.main.pieceNames[newInd] # TODO no need for that. The next command is gonna do it
+                    self.main.scoreGroup.dropdownPart.setCurrentIndex(newInd)
+                except:
+                    logging.error(f"Could not find {addressParts[2]} in {self.main.partNames}")
+            
             elif addressParts[1] == "setRmsThr":
                 thr = addressParts[2]
                 self.main.updateRmsThrOsc(thr)
